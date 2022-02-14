@@ -19,7 +19,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(wil json)
 
-add_executable(${PROJECT_NAME} src/main.cxx)
+add_executable(${PROJECT_NAME} src/main.cxx src/crypto.cxx)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN)

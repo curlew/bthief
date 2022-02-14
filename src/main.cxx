@@ -1,8 +1,15 @@
+#include "crypto.hxx"
 #include <iostream>
+#include <fstream>
 #include <filesystem>
 #include <windows.h>
 #include <ShlObj.h>
+#include <nlohmann/json.hpp>
 #include <wil/resource.h>
+
+namespace {
+void hexdump(const uint8_t *addr, size_t len, const char *desc = NULL);
+}
 
 int main() {
     wil::unique_cotaskmem_string local_appdata_path;
@@ -17,4 +24,59 @@ int main() {
     std::wcout << "key path: "     << chrome_key_path << "\n"
                << "login path: "   << chrome_login_path << "\n"
                << "cookies path: " << chrome_cookies_path << "\n";
+
+    std::ifstream key_file(chrome_key_path);
+
+    using json = nlohmann::json;
+    std::vector<uint8_t> key;
+    try {
+        json j = json::parse(key_file);
+        std::string key_string = j["os_crypt"]["encrypted_key"];
+        std::cout << "raw key: " << key_string << "\n";
+        key = base64_decode(&key_string[0]);
+    } catch (json::exception &) {
+        std::wcerr << L"error reading json\n";
+        return 1;
+    }
+    hexdump(&key[0], key.size(), "base64 decoded key");
+
+}
+
+namespace {
+void hexdump(const uint8_t *addr, size_t len, const char *desc) {
+    if (desc) {
+        printf("%s:\n", desc);
+    }
+
+    const short bytes_per_line = 16;
+
+    char ascii_representation[bytes_per_line] = {0};
+
+    int i;
+    for (i = 0; i < len; ++i) {
+        if ((i % bytes_per_line) == 0) {
+            printf("%08X |", i);
+        }
+
+        printf(" %02X", addr[i]);
+
+        if (isprint(addr[i])) {
+            ascii_representation[i % bytes_per_line] = addr[i];
+        } else {
+            ascii_representation[i % bytes_per_line] = '.';
+        }
+
+        if ((i % bytes_per_line) == bytes_per_line - 1) {
+            // ascii_representation is not null terminated so print exactly bytes_per_line characters
+            printf(" | %.*s\n", bytes_per_line, ascii_representation);
+        }
+    }
+
+    // pad last line, which may not be a full 16 bytes
+    for (int j = i; j % bytes_per_line != 0; ++j) {
+        printf("   ");
+    }
+
+    printf(" | %.*s\n", i % bytes_per_line, ascii_representation);
+}
 }
