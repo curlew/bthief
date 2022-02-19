@@ -40,6 +40,9 @@ int main() {
     }
     hexdump(&key[0], key.size(), "base64 decoded key");
 
+    key.erase(key.begin(), key.begin() + 5); // TODO vector isn't a good container for this operation
+    key = dpapi_decrypt(key);
+    hexdump(&key[0], key.size(), "DPAPI decrypted key");
 }
 
 namespace {
@@ -72,11 +75,13 @@ void hexdump(const uint8_t *addr, size_t len, const char *desc) {
         }
     }
 
-    // pad last line, which may not be a full 16 bytes
-    for (int j = i; j % bytes_per_line != 0; ++j) {
-        printf("   ");
-    }
+    if (i % 16 != 0) {
+        // pad last line if not a full 16 bytes
+        for (int j = i; j % bytes_per_line != 0; ++j) {
+            printf("   ");
+        }
 
-    printf(" | %.*s\n", i % bytes_per_line, ascii_representation);
+        printf(" | %.*s\n", i % bytes_per_line, ascii_representation);
+    }
 }
 }
