@@ -1,13 +1,13 @@
+#include "browser.hxx"
 #include "crypto.hxx"
 #include "nowide.hxx"
 #include <iostream>
 #include <fstream>
 #include <filesystem>
 #include <windows.h>
-#include <ShlObj.h>
 #include <nlohmann/json.hpp>
 #include <sqlite3.h>
-#include <wil/resource.h>
+//#include <wil/resource.h>
 
 namespace {
 void hexdump(const uint8_t *addr, size_t len, const char *desc = NULL);
@@ -17,20 +17,11 @@ void hexdump(const uint8_t *addr, size_t len, const char *desc = NULL);
 //using unique_sqlite_stmt = wil::unique_struct<sqlite3_stmt, decltype(&sqlite3_finalize), sqlite3_finalize>;
 
 int main() {
-    wil::unique_cotaskmem_string local_appdata_path;
-    SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DONT_UNEXPAND, NULL, &local_appdata_path);
+    std::wcout << "key path: "     << chrome::key_path << "\n"
+               << "logins path: "  << chrome::logins_path << "\n"
+               << "cookies path: " << chrome::cookies_path << "\n";
 
-    std::filesystem::path chrome_base_path = local_appdata_path.get();
-    chrome_base_path /= "Google\\Chrome\\User Data";
-    std::filesystem::path chrome_key_path = chrome_base_path / "Local State",
-                          chrome_login_path = chrome_base_path / "Default" / "Login Data",
-                          chrome_cookies_path = chrome_base_path / "Default" / "Cookies";
-
-    std::wcout << "key path: "     << chrome_key_path << "\n"
-               << "login path: "   << chrome_login_path << "\n"
-               << "cookies path: " << chrome_cookies_path << "\n";
-
-    std::ifstream key_file(chrome_key_path);
+    std::ifstream key_file(chrome::key_path);
 
     using json = nlohmann::json;
     std::vector<uint8_t> key;
@@ -50,7 +41,7 @@ int main() {
     hexdump(&key[0], key.size(), "DPAPI decrypted key");
 
     sqlite3 *db;
-    if (sqlite3_open(narrow(chrome_login_path).c_str(), &db) != SQLITE_OK) {
+    if (sqlite3_open(narrow(chrome::logins_path).c_str(), &db) != SQLITE_OK) {
         std::wcerr << L"couldn't open db. is chrome installed?\n";
         return 1;
     }
