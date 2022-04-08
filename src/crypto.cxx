@@ -13,6 +13,26 @@ static const int b64index[256] = {
     34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51};
 }
 
+wil::unique_bcrypt_key bcrypt_import_key_blob(const wil::unique_bcrypt_algorithm &bc_alg,
+                                              const std::vector<uint8_t> &blob_data) {
+    BCRYPT_KEY_DATA_BLOB_HEADER header;
+    header.dwMagic   = BCRYPT_KEY_DATA_BLOB_MAGIC;
+    header.dwVersion = BCRYPT_KEY_DATA_BLOB_VERSION1;
+    header.cbKeyData = blob_data.size();
+
+    std::vector<uint8_t> blob(
+        reinterpret_cast<uint8_t *>(&header),
+        reinterpret_cast<uint8_t *>(&header) + sizeof (header)
+    );
+    blob.insert(blob.end(), blob_data.begin(), blob_data.end());
+
+    wil::unique_bcrypt_key ret;
+    if (BCryptImportKey(bc_alg.get(), NULL, BCRYPT_KEY_DATA_BLOB, &ret, NULL, 0, blob.data(), blob.size(), 0) != STATUS_SUCCESS) {
+        return wil::unique_bcrypt_key();
+    }
+    return ret;
+}
+
 std::vector<uint8_t> dpapi_decrypt(const std::vector<uint8_t> &c) {
     DATA_BLOB ciphertext_blob, plaintext_blob;
     ciphertext_blob.cbData = c.size();

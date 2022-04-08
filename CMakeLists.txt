@@ -31,4 +31,4 @@ target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN)
 target_include_directories(${PROJECT_NAME} PRIVATE ${sqlite_SOURCE_DIR})
 
-target_link_libraries(${PROJECT_NAME} Crypt32 WIL nlohmann_json::nlohmann_json)
+target_link_libraries(${PROJECT_NAME} Bcrypt Crypt32 WIL nlohmann_json::nlohmann_json)
