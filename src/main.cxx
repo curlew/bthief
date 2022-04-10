@@ -63,7 +63,7 @@ int main() {
 
     sqlite3_stmt *statement;
     // https://source.chromium.org/chromium/chromium/src/+/main:components/password_manager/core/browser/login_database.cc;drc=4019e81d73554328448bd06db3eeb653080a3fb1;l=312
-    if (sqlite3_prepare_v2(db, "SELECT action_url, username_value, password_value FROM logins", -1, &statement, NULL) != SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, "SELECT action_url, date_created, username_value, password_value FROM logins", -1, &statement, NULL) != SQLITE_OK) {
         std::wcerr << L"error compiling sql statement\n";
         sqlite3_close(db);
         return 1;
@@ -71,11 +71,27 @@ int main() {
 
     int sql_ret = 0;
     while ((sql_ret = sqlite3_step(statement)) == SQLITE_ROW) {
-        const uint8_t *pw_col = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(statement, 2));
-        const size_t pw_col_size = sqlite3_column_bytes(statement, 2);
+        const uint8_t *pw_col = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(statement, 3));
+        const size_t pw_col_size = sqlite3_column_bytes(statement, 3);
 
         std::cout << "action_url: " << sqlite3_column_text(statement, 0) << "\n";
-        std::cout << "username: " << sqlite3_column_text(statement, 1) << "\n";
+        std::cout << "username: " << sqlite3_column_text(statement, 2) << "\n";
+
+        sqlite_int64 date_created = sqlite3_column_int64(statement, 1);
+
+        // time since epoch is stored by chrome as microseconds but by FILETIME as 100-nanosecond intervals
+        // https://docs.microsoft.com/en-us/windows/win32/sysinfo/file-times
+        // https://source.chromium.org/chromium/chromium/src/+/main:base/time/time.h;l=505;drc=721e6d70189ce1350f8ff733a02c98b9bc8e8251
+        date_created *= 10;
+
+        FILETIME ft;
+        ft.dwHighDateTime = (date_created & 0xFFFFFFFF00000000) >> 32; // 32 most significant bits
+        ft.dwLowDateTime = date_created & 0xFFFFFFFF; // 32 least significant bits
+
+        SYSTEMTIME st;
+        FileTimeToSystemTime(&ft, &st);
+        printf("date created: %d-%02d-%02d %02d:%02d:%02d.%03d UTC\n",
+               st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
 
         // [0, 2]  - magic bytes
         // [3, 14] - nonce
