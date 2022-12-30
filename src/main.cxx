@@ -20,17 +20,19 @@ void kill_chrome();
 //using unique_sqlite_stmt = wil::unique_struct<sqlite3_stmt, decltype(&sqlite3_finalize), sqlite3_finalize>;
 
 int main() {
+    SetConsoleOutputCP(CP_UTF8);
+
     wil::unique_bcrypt_algorithm bc_alg;
     if (STATUS_SUCCESS != BCryptOpenAlgorithmProvider(&bc_alg, BCRYPT_AES_ALGORITHM, NULL, 0)) {
-        std::wcerr << L"error opening a bcrypt algorithm provider\n";
+        std::cout << "error opening a bcrypt algorithm provider\n";
         return 1;
     }
 
     BCryptSetProperty(bc_alg.get(), BCRYPT_CHAINING_MODE, (BYTE *)BCRYPT_CHAIN_MODE_GCM, sizeof (BCRYPT_CHAIN_MODE_GCM), 0);
 
-    std::wcout << "key path: "     << chrome::key_path << "\n"
-               << "logins path: "  << chrome::logins_path << "\n"
-               << "cookies path: " << chrome::cookies_path << "\n";
+    std::cout << "key path: "     << chrome::key_path << "\n"
+              << "logins path: "  << chrome::logins_path << "\n"
+              << "cookies path: " << chrome::cookies_path << "\n";
 
     kill_chrome();
 
@@ -44,7 +46,7 @@ int main() {
         std::cout << "raw key: " << key_string << "\n";
         key_data = base64_decode(&key_string[0]);
     } catch (json::exception &) {
-        std::wcerr << L"error reading json\n";
+        std::cerr << "error reading json\n";
         return 1;
     }
     hexdump(&key_data[0], key_data.size(), "base64 decoded key");
@@ -55,20 +57,20 @@ int main() {
 
     wil::unique_bcrypt_key bc_key = bcrypt_import_key_blob(bc_alg, key_data);
     if (!bc_key) {
-        std::wcerr << L"error importing key\n";
+        std::cerr << "error importing key\n";
         return 1;
     }
 
     sqlite3 *db;
-    if (sqlite3_open(narrow(chrome::logins_path).c_str(), &db) != SQLITE_OK) {
-        std::wcerr << L"couldn't open db. is chrome installed?\n";
+    if (sqlite3_open(chrome::logins_path.string().c_str(), &db) != SQLITE_OK) {
+        std::cerr << "couldn't open db. is chrome installed?\n";
         return 1;
     }
 
     sqlite3_stmt *statement;
     // https://source.chromium.org/chromium/chromium/src/+/main:components/password_manager/core/browser/login_database.cc;drc=4019e81d73554328448bd06db3eeb653080a3fb1;l=312
     if (sqlite3_prepare_v2(db, "SELECT action_url, date_created, username_value, password_value FROM logins", -1, &statement, NULL) != SQLITE_OK) {
-        std::wcerr << L"error compiling sql statement\n";
+        std::cerr << "error compiling sql statement\n";
         sqlite3_close(db);
         return 1;
     }
@@ -103,27 +105,24 @@ int main() {
         auth_info.pbTag   = &auth_tag[0];
         auth_info.cbTag   = (ULONG)auth_tag.size();
 
-        std::vector<uint8_t> plaintext(ciphertext.size());
+        std::vector<uint8_t> plaintext_vec(ciphertext.size());
 
         status_ret = BCryptDecrypt(bc_key.get(),
-                                   &ciphertext[0],
-                                   ciphertext.size(),
+                                   &ciphertext[0], (ULONG)ciphertext.size(),
                                    &auth_info,
                                    NULL, 0,
-                                   &plaintext[0], plaintext.size(),
+                                   &plaintext_vec[0], (ULONG)plaintext_vec.size(),
                                    &bytes_copied,
                                    0);
 
-        plaintext.resize(plaintext.size() - 16); // TODO
-        std::cout << "plaintext password: ";
-        for (char c : plaintext) {
-            std::cout << c;
-        }
-        std::cout << "\n\n";
+        plaintext_vec.resize(plaintext_vec.size() - 16); // TODO
+        std::string plaintext(plaintext_vec.begin(), plaintext_vec.end());
+
+        std::cout << "password: " << plaintext << "\n\n";
     }
     if (sql_ret != SQLITE_DONE) {
-        std::wcerr << L"error performing sql query: " << widen(sqlite3_errmsg(db)) << L"\n";
-        std::wcerr << L"ret: " << sql_ret << L"\n";
+        std::cerr << "error performing sql query: " << sqlite3_errmsg(db) << "\n";
+        std::cerr << "ret: " << sql_ret << "\n";
     }
 
     sqlite3_finalize(statement);

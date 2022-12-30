@@ -18,7 +18,7 @@ wil::unique_bcrypt_key bcrypt_import_key_blob(const wil::unique_bcrypt_algorithm
     BCRYPT_KEY_DATA_BLOB_HEADER header;
     header.dwMagic   = BCRYPT_KEY_DATA_BLOB_MAGIC;
     header.dwVersion = BCRYPT_KEY_DATA_BLOB_VERSION1;
-    header.cbKeyData = blob_data.size();
+    header.cbKeyData = (ULONG)blob_data.size();
 
     std::vector<uint8_t> blob(
         reinterpret_cast<uint8_t *>(&header),
@@ -27,7 +27,7 @@ wil::unique_bcrypt_key bcrypt_import_key_blob(const wil::unique_bcrypt_algorithm
     blob.insert(blob.end(), blob_data.begin(), blob_data.end());
 
     wil::unique_bcrypt_key ret;
-    if (BCryptImportKey(bc_alg.get(), NULL, BCRYPT_KEY_DATA_BLOB, &ret, NULL, 0, blob.data(), blob.size(), 0) != STATUS_SUCCESS) {
+    if (BCryptImportKey(bc_alg.get(), NULL, BCRYPT_KEY_DATA_BLOB, &ret, NULL, 0, blob.data(), (ULONG)blob.size(), 0) != STATUS_SUCCESS) {
         return wil::unique_bcrypt_key();
     }
     return ret;
@@ -35,7 +35,7 @@ wil::unique_bcrypt_key bcrypt_import_key_blob(const wil::unique_bcrypt_algorithm
 
 std::vector<uint8_t> dpapi_decrypt(const std::vector<uint8_t> &c) {
     DATA_BLOB ciphertext_blob, plaintext_blob;
-    ciphertext_blob.cbData = c.size();
+    ciphertext_blob.cbData = (DWORD)c.size();
     ciphertext_blob.pbData = new BYTE[ciphertext_blob.cbData];
 
     std::memcpy(ciphertext_blob.pbData, c.data(), ciphertext_blob.cbData);
