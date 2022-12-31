@@ -18,6 +18,7 @@ private:
     wil::unique_bcrypt_algorithm m_aes_alg;
 
     std::filesystem::path get_base_path(void);
+    void kill(void) const;
 };
 
 #endif // ifndef CHROME_HXX_INCLUDED

