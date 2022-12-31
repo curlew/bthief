@@ -33,6 +33,8 @@ FetchContent_MakeAvailable(wil json sqlite)
 add_executable(${PROJECT_NAME}
                src/main.cxx
                src/nowide.cxx
+               src/chrome.cxx
+               src/firefox.cxx
                ${sqlite_SOURCE_DIR}/sqlite3.c)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
