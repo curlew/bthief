@@ -12,6 +12,8 @@ int main() {
     };
 
     for (auto &b : browsers) {
-        b->get();
+        if (b->is_valid()) {
+            b->get();
+        }
     }
 }

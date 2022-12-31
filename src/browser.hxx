@@ -4,6 +4,10 @@
 class browser {
 public:
     virtual void get(void) = 0;
+    bool is_valid(void) const;
+
+protected:
+    bool m_valid = false;
 };
 
 #endif // ifndef BROWSER_HXX_INCLUDED

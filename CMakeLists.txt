@@ -32,6 +32,7 @@ FetchContent_MakeAvailable(wil json sqlite)
 
 add_executable(${PROJECT_NAME}
                src/main.cxx
+               src/browser.cxx
                src/nowide.cxx
                src/chrome.cxx
                src/firefox.cxx
