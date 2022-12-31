@@ -13,6 +13,13 @@ chrome::chrome() {
         return;
     }
 
+    if (BCryptOpenAlgorithmProvider(&m_aes_alg, BCRYPT_AES_ALGORITHM, NULL, 0) != STATUS_SUCCESS) {
+        return;
+    }
+
+    BCryptSetProperty(m_aes_alg.get(), BCRYPT_CHAINING_MODE,
+                      (PUCHAR)BCRYPT_CHAIN_MODE_GCM, sizeof (BCRYPT_CHAIN_MODE_GCM), 0);
+
     m_valid = true;
 }
 
