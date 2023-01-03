@@ -3,6 +3,7 @@
 
 class browser {
 public:
+    virtual ~browser() = default;
     virtual void get(void) = 0;
     bool is_valid(void) const;
 
