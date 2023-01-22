@@ -1,13 +1,14 @@
-#pragma once
+#ifndef BROWSER_HXX_INCLUDED
+#define BROWSER_HXX_INCLUDED
 
-#include <filesystem>
-#include <sqlite3.h>
+class browser {
+public:
+    virtual ~browser() = default;
+    virtual void get(void) = 0;
+    bool is_valid(void) const;
 
-namespace chrome {
-extern std::filesystem::path key_path;
+protected:
+    bool m_valid = false;
+};
 
-extern std::filesystem::path logins_path;
-extern std::filesystem::path cookies_path;
-
-std::string format_time(sqlite3_int64);
-}
+#endif // ifndef BROWSER_HXX_INCLUDED
