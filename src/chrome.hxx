@@ -3,17 +3,15 @@
 
 #include "browser.hxx"
 
-#include <string>
 #include <filesystem>
 #include <windows.h>
 #include <bcrypt.h>
-#include <sqlite3.h>
 #include <wil/resource.h>
 
 class chrome : public browser {
 public:
     chrome();
-    void get(void) override;
+    std::vector<login> get(void) override;
 
 private:
     std::filesystem::path m_key_path, m_logins_path;
@@ -21,7 +19,7 @@ private:
 
     std::filesystem::path get_base_path(void);
     void kill(void) const;
-    std::string format_time(sqlite3_int64);
+    //std::string format_time(sqlite3_int64);
 };
 
 #endif // ifndef CHROME_HXX_INCLUDED

@@ -3,9 +3,11 @@
 
 #include "browser.hxx"
 
+#include "login.hxx"
+
 class firefox : public browser {
 public:
-    void get(void) override;
+    std::vector<login> get(void) override;
 };
 
 #endif // ifndef FIREFOX_HXX_INCLUDED

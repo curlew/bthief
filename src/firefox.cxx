@@ -1,3 +1,3 @@
 #include "firefox.hxx"
 
-void firefox::get(void) {}
+std::vector<login> firefox::get(void) { return {}; }
