@@ -1,10 +1,7 @@
+#include "browser.hxx"
 #include "chrome.hxx"
-#include "firefox.hxx"
-#include "login.hxx"
-#include <ctime>
+#include <format>
 #include <iostream>
-#include <memory>
-#include <vector>
 #include <windows.h>
 
 int main() {
@@ -12,19 +9,25 @@ int main() {
 
     std::unique_ptr<browser> browsers[] = {
         std::make_unique<chrome>(),
-        //std::make_unique<firefox>(),
     };
 
     for (auto &b : browsers) {
-        if (!b->is_valid()) { continue; }
+        auto logins = b->get_logins();
+        if (!logins.has_value()) {
+            std::cerr << "[" << typeid(*b).name() << "] ERROR: couldn't get logins\n";
+            continue;
+        }
 
-        std::vector<login> logins = b->get();
-        for (auto &l : logins) {
-            const std::time_t date_created = std::chrono::system_clock::to_time_t(l.date_created);
+        for (auto &l : logins.value()) {
+            uint64_t last_used_timestamp = l.date_last_used.time_since_epoch().count();
+            std::string last_used = last_used_timestamp == 0
+                                        ? "never"
+                                        : std::format("{:%F %T%z}", l.date_last_used);
+
             std::cout << l.url << "\n"
-                      << "    " << l.username << ":" << l.password << "\n"
-                      << "    created " << std::put_time(std::gmtime(&date_created), "%F %T UTC") << "\n"
-                      << "\n";
+                      << "  " << l.username << ":" << l.password << "\n"
+                      << "  created: " << std::format("{:%F %T%z}", l.date_created) << "\n"
+                      << "  last used: " << last_used << "\n\n";
         }
     }
 }

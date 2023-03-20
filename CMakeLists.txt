@@ -32,14 +32,12 @@ FetchContent_MakeAvailable(wil json sqlite)
 
 add_executable(${PROJECT_NAME}
                src/main.cxx
-               src/browser.cxx
                src/crypt.cxx
                src/nowide.cxx
                src/chrome.cxx
-               src/firefox.cxx
                ${sqlite_SOURCE_DIR}/sqlite3.c)
 
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN)
 target_include_directories(${PROJECT_NAME} PRIVATE ${sqlite_SOURCE_DIR})
 target_link_libraries(${PROJECT_NAME} Bcrypt Crypt32 WIL nlohmann_json::nlohmann_json)

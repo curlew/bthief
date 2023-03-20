@@ -7,7 +7,7 @@
 struct login {
     std::string url;
     std::string username, password;
-    std::chrono::system_clock::time_point date_created;
+    std::chrono::system_clock::time_point date_created, date_last_used;
 };
 
 #endif // ifndef LOGIN_HXX_INCLUDED

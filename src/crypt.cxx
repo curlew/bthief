@@ -70,7 +70,7 @@ wil::unique_bcrypt_key import_key_data(
     if (STATUS_SUCCESS !=
             BCryptImportKey(alg.get(), NULL, BCRYPT_KEY_DATA_BLOB, &key,
             NULL, 0, blob.data(), (ULONG)blob.size(), 0)) {
-        return wil::unique_bcrypt_key();
+        return wil::unique_bcrypt_key(); // TODO:
     }
 
     return key;
