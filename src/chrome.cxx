@@ -70,7 +70,7 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
 
     unique_sqlite3_stmt stmt;
     if (sqlite3_prepare_v2(db.get(),
-            "SELECT origin_url, date_created, date_last_used, username_value, password_value FROM logins",
+            "SELECT origin_url, date_created, date_last_used, date_password_modified, username_value, password_value FROM logins",
             -1, &stmt, NULL) != SQLITE_OK) {
         return std::unexpected(browser_error::sqlite_error);
     }
@@ -80,12 +80,13 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     int step_ret = 0;
     while ((step_ret = sqlite3_step(stmt.get())) == SQLITE_ROW) {
         // TODO: tidy
-        const std::string    db_origin_url          = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 0));
-        const sqlite3_int64  db_date_created        = sqlite3_column_int64(stmt.get(), 1);
-        const sqlite3_int64  db_date_last_used      = sqlite3_column_int64(stmt.get(), 2);
-        const std::string    db_username_value      = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 3));
-        const uint8_t       *db_password_value      = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(stmt.get(), 4));
-        const size_t         db_password_value_size = sqlite3_column_bytes(stmt.get(), 4);
+        const std::string    db_origin_url             = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 0));
+        const sqlite3_int64  db_date_created           = sqlite3_column_int64(stmt.get(), 1);
+        const sqlite3_int64  db_date_last_used         = sqlite3_column_int64(stmt.get(), 2);
+        const sqlite3_int64  db_date_password_modified = sqlite3_column_int64(stmt.get(), 3);
+        const std::string    db_username_value         = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 4));
+        const uint8_t       *db_password_value         = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(stmt.get(), 5));
+        const size_t         db_password_value_size    = sqlite3_column_bytes(stmt.get(), 5);
 
         // db_password_value is encrypted with AES
 
@@ -113,23 +114,32 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
 
         using namespace std::chrono;
 
+        // time is stored by chrome as microseconds since the windows FILETIME epoch
+        // https://source.chromium.org/chromium/chromium/src/+/main:base/time/time.h;l=505;drc=721e6d70189ce1350f8ff733a02c98b9bc8e8251
+        // https://docs.microsoft.com/en-us/windows/win32/sysinfo/file-times
+
         // difference between UNIX epoch (1970-01-01 00:00:00 UTC) and windows FILETIME
         // epoch (1601-01-01 00:00:00 UTC)
         auto epoch_offset = seconds{11644473600LL};
 
-        system_clock::time_point date_created{microseconds{db_date_created}
-                                                           - epoch_offset};
+        system_clock::time_point date_created
+            {microseconds{db_date_created} - epoch_offset};
+        system_clock::time_point date_password_modified
+            {microseconds{db_date_password_modified} - epoch_offset};
+
+        // db_date_last_used can be 0 if never used, so check before converting to unix time
         system_clock::time_point date_last_used{};
         if (db_date_last_used != 0) {
             date_last_used = {microseconds{db_date_last_used} - epoch_offset};
         }
 
         login l;
-        l.url            = db_origin_url;
-        l.username       = db_username_value;
-        l.password       = password_plaintext;
-        l.date_created   = date_created;
-        l.date_last_used = date_last_used;
+        l.url                    = db_origin_url;
+        l.username               = db_username_value;
+        l.password               = password_plaintext;
+        l.date_created           = date_created;
+        l.date_last_used         = date_last_used;
+        l.date_password_modified = date_password_modified;
         logins.emplace_back(l);
     }
     if (step_ret != SQLITE_DONE) {

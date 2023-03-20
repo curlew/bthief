@@ -27,7 +27,8 @@ int main() {
             std::cout << l.url << "\n"
                       << "  " << l.username << ":" << l.password << "\n"
                       << "  created: " << std::format("{:%F %T%z}", l.date_created) << "\n"
-                      << "  last used: " << last_used << "\n\n";
+                      << "  last used: " << last_used << "\n"
+                      << "  password last modified: " << std::format("{:%F %T%z}", l.date_password_modified) << "\n\n";
         }
     }
 }
