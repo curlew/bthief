@@ -1,7 +1,7 @@
 #ifndef CHROME_HXX_INCLUDED
 #define CHROME_HXX_INCLUDED
 
-#include "browser.hxx"
+#include "browsers/browser.hxx"
 #include <expected>
 #include <filesystem>
 #include <windows.h>
