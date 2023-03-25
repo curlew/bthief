@@ -3,9 +3,10 @@
 
 #include "browsers/browser.hxx"
 
-#include <filesystem>
 #include <expected>
+#include <filesystem>
 #include <optional>
+#include <vector>
 
 class firefox : public browser {
 public:
@@ -13,6 +14,7 @@ public:
 
 private:
     std::optional<std::filesystem::path> find_nss(void);
+    std::optional<std::vector<std::filesystem::path>> find_profiles(void);
 };
 
 #endif // ifndef FIREFOX_HXX_INCLUDED

@@ -8,7 +8,26 @@
 #include <wil/resource.h>
 
 std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
-    std::cout << "NSS path: " << find_nss().value_or("not found") << "\n";
+    std::filesystem::path nss_path;
+    if (auto maybe_nss_path = find_nss()) {
+        nss_path = *maybe_nss_path;
+    } else {
+        std::cerr << "couldn't find nss\n";
+        return std::unexpected(browser_error::file_not_found);
+    }
+    std::cout << "NSS path: " << nss_path.string() << "\n";
+
+    std::vector<std::filesystem::path> profiles;
+    if (auto maybe_profiles = find_profiles()) {
+        profiles = *maybe_profiles;
+    } else {
+        std::cerr << "no profiles found\n";
+        return std::unexpected(browser_error::file_not_found);
+    }
+
+    for (const auto &profile : profiles) {
+        std::cout << " - found profile: " << profile.string() << "\n";
+    }
 
     return {};
 }
@@ -36,4 +55,19 @@ std::optional<std::filesystem::path> firefox::find_nss(void) {
     }
 
     return std::nullopt;
+}
+
+std::optional<std::vector<std::filesystem::path>> firefox::find_profiles(void) {
+    wil::unique_cotaskmem_string roaming_appdata_path;
+    SHGetKnownFolderPath(FOLDERID_RoamingAppData, KF_FLAG_DONT_UNEXPAND, NULL,
+                         &roaming_appdata_path);
+    std::filesystem::path base_path = roaming_appdata_path.get();
+    base_path = base_path / "Mozilla" / "Firefox" / "Profiles";
+
+    std::vector<std::filesystem::path> profiles;
+    for (const auto &profile : std::filesystem::directory_iterator(base_path)) {
+        profiles.emplace_back(profile.path());
+    }
+
+    return !profiles.empty() ? std::make_optional(profiles) : std::nullopt;
 }
