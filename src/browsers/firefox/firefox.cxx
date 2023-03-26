@@ -1,11 +1,19 @@
 #include "firefox.hxx"
 
+#include "library.hxx"
 #include "nowide.hxx"
 #include <iostream>
 #include <vector>
 #include <ShlObj.h>
 #include <windows.h>
 #include <wil/resource.h>
+
+class nss_library : private library {
+public:
+    nss_library(const std::filesystem::path &path) : library(path) {}
+
+    std::function<const char *(void)> NSS_GetVersion = function<const char *(void)>("NSS_GetVersion");
+};
 
 std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
     std::filesystem::path nss_path;
@@ -28,6 +36,16 @@ std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
     for (const auto &profile : profiles) {
         std::cout << " - found profile: " << profile.string() << "\n";
     }
+
+    std::optional<nss_library> maybe_nss;
+    try {
+        maybe_nss = std::optional<nss_library>(nss_path);
+    } catch (std::runtime_error &e) {
+        std::cerr << "NSS exception: " << e.what() << "\n";
+        return std::unexpected(browser_error::file_not_found);
+    }
+    nss_library &nss = *maybe_nss;
+    std::cout << "NSS version: " << nss.NSS_GetVersion() << "\n";
 
     return {};
 }

@@ -38,6 +38,7 @@ add_executable(bthief
     src/nowide.cxx
     src/browsers/chrome/chrome.cxx
     src/browsers/firefox/firefox.cxx
+    src/browsers/firefox/library.cxx
     ${sqlite_SOURCE_DIR}/sqlite3.c
 )
 set_property(TARGET bthief PROPERTY
