@@ -12,6 +12,10 @@
 
 chrome::chrome() { }
 
+std::string chrome::get_name(void) const {
+    return "Google Chrome";
+}
+
 std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     std::filesystem::path base_path = get_base_path();
     m_key_path = base_path / "Local State";

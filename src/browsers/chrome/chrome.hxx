@@ -4,6 +4,7 @@
 #include "browsers/browser.hxx"
 #include <expected>
 #include <filesystem>
+#include <string>
 #include <windows.h>
 #include <bcrypt.h>
 #include <wil/resource.h>
@@ -11,6 +12,7 @@
 class chrome : public browser {
 public:
     chrome();
+    std::string get_name(void) const override;
     std::expected<std::vector<login>, browser_error> get_logins(void) override;
 
 private:

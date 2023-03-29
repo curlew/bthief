@@ -66,6 +66,10 @@ public:
 };
 } // namespace
 
+std::string firefox::get_name(void) const {
+    return "Firefox";
+}
+
 std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
     std::filesystem::path nss_path;
     if (auto maybe_nss_path = find_nss()) {

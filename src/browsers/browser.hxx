@@ -32,6 +32,7 @@ enum class browser_error {
 class browser {
 public:
     virtual ~browser() = default;
+    virtual std::string get_name(void) const = 0;
     virtual std::expected<std::vector<login>, browser_error> get_logins(void) = 0;
 };
 

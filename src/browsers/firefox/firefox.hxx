@@ -10,6 +10,7 @@
 
 class firefox : public browser {
 public:
+    std::string get_name(void) const override;
     std::expected<std::vector<login>, browser_error> get_logins(void) override;
 
 private:
