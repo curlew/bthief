@@ -16,22 +16,26 @@
 namespace {
 class nss_library : private library {
 public:
-    nss_library(const std::filesystem::path &path) : library(path) {}
+    nss_library(const std::filesystem::path &path)
+        : library(path) { }
 
     // symbols for runtime dynamic linking
+    // clang-format off
     std::function<::NSS_Initialize>    NSS_Initialize    = function<::NSS_Initialize>("NSS_Initialize");
     std::function<::NSS_Shutdown>      NSS_Shutdown      = function<::NSS_Shutdown>("NSS_Shutdown");
     std::function<::SECITEM_AllocItem> SECITEM_AllocItem = function<::SECITEM_AllocItem>("SECITEM_AllocItem");
     std::function<::SECITEM_ZfreeItem> SECITEM_ZfreeItem = function<::SECITEM_ZfreeItem>("SECITEM_ZfreeItem");
     std::function<::PK11SDR_Decrypt>   PK11SDR_Decrypt   = function<::PK11SDR_Decrypt>("PK11SDR_Decrypt");
+    // clang-format on
 };
 
 class nss {
     nss_library &m_nss_lib;
 
 public:
-    nss(nss_library &nss_lib, const std::filesystem::path &profile) : m_nss_lib{nss_lib} {
-        if (m_nss_lib.NSS_Initialize(profile.string().c_str(), "", "", SECMOD_DB, NSS_INIT_READONLY)!= SECSuccess) {
+    nss(nss_library &nss_lib, const std::filesystem::path &profile)
+        : m_nss_lib{nss_lib} {
+        if (m_nss_lib.NSS_Initialize(profile.string().c_str(), "", "", SECMOD_DB, NSS_INIT_READONLY) != SECSuccess) {
             throw std::runtime_error("nss: NSS_Initialize() failed"); // TODO:
         }
     }
@@ -54,7 +58,7 @@ public:
         in.data = ciphertext.data();
         in.len = (unsigned int)ciphertext.size();
         unique_SECItem out(m_nss_lib.SECITEM_AllocItem(NULL, NULL, 0), SECItem_deleter);
-        //std::copy(ciphertext.begin(), ciphertext.end(), in->data);
+        // std::copy(ciphertext.begin(), ciphertext.end(), in->data);
 
         if (m_nss_lib.PK11SDR_Decrypt(&in, out.get(), NULL) != SECSuccess) {
             return ""; // TODO:
@@ -80,7 +84,6 @@ std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
         return std::unexpected(browser_error::file_not_found); // TODO:
     }
     nss_library &nss_lib = *maybe_nss_lib;
-
 
     std::vector<std::filesystem::path> profiles;
     if (auto maybe_profiles = find_profiles()) {

@@ -4,6 +4,7 @@
 #include <dpapi.h>
 
 namespace {
+// clang-format off
 const int b64index[256] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
@@ -11,7 +12,8 @@ const int b64index[256] = {
     0,  0,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18,
     19, 20, 21, 22, 23, 24, 25, 0,  0,  0,  0,  63, 0,  26, 27, 28, 29, 30, 31, 32, 33,
     34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51};
-}
+// clang-format on
+} // namespace
 
 // https://stackoverflow.com/a/41094722
 std::vector<uint8_t> b64_decode(const std::string &buffer) {
@@ -53,8 +55,8 @@ std::vector<uint8_t> dpapi_decrypt(const std::vector<uint8_t> &ciphertext_) {
 }
 
 wil::unique_bcrypt_key import_key_data(
-        const wil::unique_bcrypt_algorithm &alg,
-        const std::vector<uint8_t> &data) {
+    const wil::unique_bcrypt_algorithm &alg,
+    const std::vector<uint8_t> &data) {
     BCRYPT_KEY_DATA_BLOB_HEADER header;
     header.dwMagic = BCRYPT_KEY_DATA_BLOB_MAGIC;
     header.dwVersion = BCRYPT_KEY_DATA_BLOB_VERSION1;
@@ -62,14 +64,13 @@ wil::unique_bcrypt_key import_key_data(
 
     std::vector<uint8_t> blob(
         reinterpret_cast<uint8_t *>(&header),
-        reinterpret_cast<uint8_t *>(&header) + sizeof (header)
-    );
+        reinterpret_cast<uint8_t *>(&header) + sizeof(header));
     blob.insert(blob.end(), data.begin(), data.end());
 
     wil::unique_bcrypt_key key;
     if (STATUS_SUCCESS !=
-            BCryptImportKey(alg.get(), NULL, BCRYPT_KEY_DATA_BLOB, &key,
-            NULL, 0, blob.data(), (ULONG)blob.size(), 0)) {
+        BCryptImportKey(alg.get(), NULL, BCRYPT_KEY_DATA_BLOB, &key,
+                        NULL, 0, blob.data(), (ULONG)blob.size(), 0)) {
         return wil::unique_bcrypt_key(); // TODO:
     }
 
