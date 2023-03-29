@@ -23,13 +23,13 @@ std::vector<uint8_t> b64_decode(const std::string &buffer) {
 
     for (size_t i = 0, j = 0; i < L; i += 4) {
         int n = b64index[p[i]] << 18 | b64index[p[i + 1]] << 12 | b64index[p[i + 2]] << 6 | b64index[p[i + 3]];
-        ret[j++] = n >> 16;
+        ret[j++] = (uint8_t)(n >> 16);
         ret[j++] = n >> 8 & 0xFF;
         ret[j++] = n & 0xFF;
     }
     if (pad) {
         int n = b64index[p[L]] << 18 | b64index[p[L + 1]] << 12;
-        ret[ret.size() - 1] = n >> 16;
+        ret[ret.size() - 1] = (uint8_t)(n >> 16);
 
         if (len > L + 2 && p[L + 2] != '=') {
             n |= b64index[p[L + 2]] << 6;
@@ -41,7 +41,7 @@ std::vector<uint8_t> b64_decode(const std::string &buffer) {
 
 std::vector<uint8_t> dpapi_decrypt(const std::vector<uint8_t> &ciphertext_) {
     DATA_BLOB ciphertext, plaintext;
-    ciphertext.cbData = ciphertext_.size();
+    ciphertext.cbData = (DWORD)ciphertext_.size();
     ciphertext.pbData = (BYTE *)ciphertext_.data();
 
     if (!CryptUnprotectData(&ciphertext, NULL, NULL, NULL, NULL, 0, &plaintext)) {

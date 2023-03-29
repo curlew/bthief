@@ -1,5 +1,6 @@
-#include "browser.hxx"
-#include "chrome.hxx"
+#include "browsers/browser.hxx"
+#include "browsers/chrome/chrome.hxx"
+#include "browsers/firefox/firefox.hxx"
 #include <format>
 #include <iostream>
 #include <windows.h>
@@ -9,6 +10,7 @@ int main() {
 
     std::unique_ptr<browser> browsers[] = {
         std::make_unique<chrome>(),
+        std::make_unique<firefox>(),
     };
 
     for (auto &b : browsers) {

