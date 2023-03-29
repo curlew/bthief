@@ -1,6 +1,7 @@
 #include "browsers/browser.hxx"
 #include "browsers/chrome/chrome.hxx"
 #include "browsers/firefox/firefox.hxx"
+#include <chrono>
 #include <format>
 #include <iostream>
 #include <windows.h>
@@ -16,21 +17,28 @@ int main() {
     for (auto &b : browsers) {
         auto logins = b->get_logins();
         if (!logins.has_value()) {
-            std::cerr << "[" << typeid(*b).name() << "] ERROR: couldn't get logins\n";
+            std::cerr << "[" << b->get_name() << "] ERROR: couldn't get logins\n";
             continue;
         }
 
-        for (auto &l : logins.value()) {
-            uint64_t last_used_timestamp = l.date_last_used.time_since_epoch().count();
-            std::string last_used = last_used_timestamp == 0
-                                        ? "never"
-                                        : std::format("{:%F %T%z}", l.date_last_used);
+        const auto format_time_point = [](std::chrono::system_clock::time_point &tp) {
+            return std::format("{:%F %T %Z}", std::chrono::round<std::chrono::seconds>(tp));
+        };
 
-            std::cout << l.url << "\n"
-                      << "  " << l.username << ":" << l.password << "\n"
-                      << "  created: " << std::format("{:%F %T%z}", l.date_created) << "\n"
-                      << "  last used: " << last_used << "\n"
-                      << "  password last modified: " << std::format("{:%F %T%z}", l.date_password_modified) << "\n\n";
+        std::cout << "##############################  " << b->get_name() << "  ##############################\n\n";
+
+        for (auto &l : logins.value()) {
+            std::string date_last_used_str = l.date_last_used.time_since_epoch().count() == 0
+                                                 ? "never"
+                                                 : format_time_point(l.date_last_used);
+
+            std::cout << "  - " << l.url << "\n"
+                      << "    - Username: [" << l.username << "]\n"
+                      << "    - Password: [" << l.password << "]\n"
+                      << "    - Created: " << format_time_point(l.date_created) << "\n"
+                      << "    - Last used: " << date_last_used_str << "\n"
+                      << "    - Password last modified: " << format_time_point(l.date_password_modified) << "\n"
+                      << "\n";
         }
     }
 }
