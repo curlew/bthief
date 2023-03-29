@@ -15,7 +15,7 @@ const int b64index[256] = {
 // clang-format on
 } // namespace
 
-// https://stackoverflow.com/a/41094722
+// https://stackoverflow.com/a/41094722 (slightly modified)
 std::vector<uint8_t> b64_decode(const std::string &buffer) {
     unsigned char *p = (unsigned char *)&buffer[0];
     size_t len = buffer.size();
@@ -44,19 +44,20 @@ std::vector<uint8_t> b64_decode(const std::string &buffer) {
 std::vector<uint8_t> dpapi_decrypt(const std::vector<uint8_t> &ciphertext_) {
     DATA_BLOB ciphertext, plaintext;
     ciphertext.cbData = (DWORD)ciphertext_.size();
-    ciphertext.pbData = (BYTE *)ciphertext_.data();
+    ciphertext.pbData = const_cast<BYTE *>(ciphertext_.data());
 
     if (!CryptUnprotectData(&ciphertext, NULL, NULL, NULL, NULL, 0, &plaintext)) {
         return std::vector<uint8_t>();
     }
 
     std::vector<uint8_t> ret(plaintext.pbData, plaintext.pbData + plaintext.cbData);
+    LocalFree(plaintext.pbData);
     return ret;
 }
 
 wil::unique_bcrypt_key import_key_data(
-    const wil::unique_bcrypt_algorithm &alg,
-    const std::vector<uint8_t> &data) {
+        const wil::unique_bcrypt_algorithm &alg,
+        const std::vector<uint8_t> &data) {
     BCRYPT_KEY_DATA_BLOB_HEADER header;
     header.dwMagic = BCRYPT_KEY_DATA_BLOB_MAGIC;
     header.dwVersion = BCRYPT_KEY_DATA_BLOB_VERSION1;

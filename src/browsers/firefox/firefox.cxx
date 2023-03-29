@@ -2,13 +2,12 @@
 
 #include "crypt.hxx"
 #include "library.hxx"
-#include "nowide.hxx"
 #include "nss.hxx"
+#include "utils.hxx"
 #include <chrono>
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include <ShlObj.h>
 #include <windows.h>
 #include <wil/resource.h>
 #include <nlohmann/json.hpp>
@@ -16,8 +15,7 @@
 namespace {
 class nss_library : private library {
 public:
-    nss_library(const std::filesystem::path &path)
-        : library(path) { }
+    using library::library;
 
     // symbols for runtime dynamic linking
     // clang-format off
@@ -54,16 +52,16 @@ public:
 
         std::vector<uint8_t> ciphertext = b64_decode(ciphertext_b64);
 
-        SECItem in = {};
-        in.data = ciphertext.data();
-        in.len = (unsigned int)ciphertext.size();
+        SECItem in {
+            .data = ciphertext.data(),
+            .len = (unsigned int)ciphertext.size(),
+        };
         unique_SECItem out(m_nss_lib.SECITEM_AllocItem(NULL, NULL, 0), SECItem_deleter);
-        // std::copy(ciphertext.begin(), ciphertext.end(), in->data);
 
         if (m_nss_lib.PK11SDR_Decrypt(&in, out.get(), NULL) != SECSuccess) {
             return ""; // TODO:
         }
-        return std::string((const char *)out->data, out->len);
+        return std::string(reinterpret_cast<const char *>(out->data), out->len);
     }
 };
 } // namespace
@@ -109,13 +107,14 @@ std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
             using ms = std::chrono::milliseconds;
             using time_point = std::chrono::system_clock::time_point;
 
-            login l;
-            l.url = login_entry.at("hostname");
-            l.username = db.decrypt(login_entry.at("encryptedUsername"));
-            l.password = db.decrypt(login_entry.at("encryptedPassword"));
-            l.date_created = time_point(ms(login_entry.at("timeCreated").get<uint64_t>()));
-            l.date_last_used = time_point(ms(login_entry.at("timeLastUsed").get<uint64_t>()));
-            l.date_password_modified = time_point(ms(login_entry.at("timePasswordChanged").get<uint64_t>()));
+            login l {
+                .url = login_entry.at("hostname"),
+                .username = db.decrypt(login_entry.at("encryptedUsername")),
+                .password = db.decrypt(login_entry.at("encryptedPassword")),
+                .date_created = time_point(ms(login_entry.at("timeCreated").get<uint64_t>())),
+                .date_last_used = time_point(ms(login_entry.at("timeLastUsed").get<uint64_t>())),
+                .date_password_modified = time_point(ms(login_entry.at("timePasswordChanged").get<uint64_t>())),
+            };
             logins.emplace_back(l);
         }
     }
@@ -124,13 +123,9 @@ std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
 }
 
 std::optional<std::filesystem::path> firefox::find_nss(void) {
-    wil::unique_cotaskmem_string program_files_path;
-    SHGetKnownFolderPath(FOLDERID_ProgramFiles, KF_FLAG_DONT_UNEXPAND, NULL,
-                         &program_files_path);
+    namespace fs = ::std::filesystem;
 
-    namespace fs = std::filesystem;
-
-    fs::path base_path = program_files_path.get();
+    fs::path base_path = find_folder(FOLDERID_ProgramFiles);
 
     // TODO:
     std::vector<fs::path> search_dirs = {
@@ -138,8 +133,8 @@ std::optional<std::filesystem::path> firefox::find_nss(void) {
         "Firefox Nightly",
     };
 
-    for (auto &search_dir : search_dirs) {
-        fs::path p = base_path / search_dir / fs::path("nss3.dll");
+    for (const auto &search_dir : search_dirs) {
+        fs::path p = base_path / search_dir / "nss3.dll";
         if (fs::exists(p)) {
             return p;
         }
@@ -149,15 +144,13 @@ std::optional<std::filesystem::path> firefox::find_nss(void) {
 }
 
 std::optional<std::vector<std::filesystem::path>> firefox::find_profiles(void) {
-    wil::unique_cotaskmem_string roaming_appdata_path;
-    SHGetKnownFolderPath(FOLDERID_RoamingAppData, KF_FLAG_DONT_UNEXPAND, NULL,
-                         &roaming_appdata_path);
-    std::filesystem::path base_path = roaming_appdata_path.get();
-    base_path = base_path / "Mozilla" / "Firefox" / "Profiles";
+    namespace fs = ::std::filesystem;
 
-    std::vector<std::filesystem::path> profiles;
-    for (const auto &profile : std::filesystem::directory_iterator(base_path)) {
-        profiles.emplace_back(profile.path());
+    std::filesystem::path base_path = find_folder(FOLDERID_RoamingAppData) / "Mozilla" / "Firefox" / "Profiles";
+
+    std::vector<fs::path> profiles;
+    for (const auto &p : fs::directory_iterator(base_path)) {
+        profiles.emplace_back(p.path());
     }
 
     return !profiles.empty() ? std::make_optional(profiles) : std::nullopt;

@@ -6,8 +6,8 @@
  * (modified)
  */
 
-#ifndef NSS_HXX_INCLUDED
-#define NSS_HXX_INCLUDED
+#ifndef BTHIEF_BROWSERS_FIREFOX_NSS_HXX
+#define BTHIEF_BROWSERS_FIREFOX_NSS_HXX
 
 #include <cstdint>
 
@@ -84,4 +84,4 @@ using NSS_Shutdown = SECStatus(void);
 
 using PK11SDR_Decrypt = SECStatus(SECItem *, SECItem *, void *);
 
-#endif // ifndef NSS_HXX_INCLUDED
+#endif // ifndef BTHIEF_BROWSERS_FIREFOX_NSS_HXX

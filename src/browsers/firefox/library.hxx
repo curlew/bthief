@@ -1,5 +1,5 @@
-#ifndef LIBRARY_HXX_INCLUDED
-#define LIBRARY_HXX_INCLUDED
+#ifndef BTHIEF_BROWSERS_FIREFOX_LIBRARY_HXX
+#define BTHIEF_BROWSERS_FIREFOX_LIBRARY_HXX
 
 #include <filesystem>
 #include <format>
@@ -16,7 +16,7 @@ class library {
     wil::unique_hmodule m_lib;
 
 public:
-    library(const std::filesystem::path &);
+    explicit library(const std::filesystem::path &);
 
     template<typename T>
     std::function<T> function(const std::string &name) {
@@ -28,4 +28,4 @@ public:
     }
 };
 
-#endif // ifndef LIBRARY_HXX_INCLUDED
+#endif // ifndef BTHIEF_BROWSERS_FIREFOX_LIBRARY_HXX

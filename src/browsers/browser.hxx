@@ -1,5 +1,5 @@
-#ifndef BROWSER_HXX_INCLUDED
-#define BROWSER_HXX_INCLUDED
+#ifndef BTHIEF_BROWSERS_BROWSER_HXX
+#define BTHIEF_BROWSERS_BROWSER_HXX
 
 #include <chrono>
 #include <expected>
@@ -35,4 +35,4 @@ public:
     virtual std::expected<std::vector<login>, browser_error> get_logins(void) = 0;
 };
 
-#endif // ifndef BROWSER_HXX_INCLUDED
+#endif // ifndef BTHIEF_BROWSERS_BROWSER_HXX

@@ -1,5 +1,5 @@
-#ifndef CHROME_HXX_INCLUDED
-#define CHROME_HXX_INCLUDED
+#ifndef BTHIEF_BROWSERS_CHROME_CHROME_HXX
+#define BTHIEF_BROWSERS_CHROME_CHROME_HXX
 
 #include "browsers/browser.hxx"
 #include <expected>
@@ -21,4 +21,4 @@ private:
     void kill(void);
 };
 
-#endif // ifndef CHROME_HXX_INCLUDED
+#endif // ifndef BTHIEF_BROWSERS_CHROME_CHROME_HXX

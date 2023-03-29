@@ -1,6 +1,6 @@
 #include "library.hxx"
 
-#include "nowide.hxx"
+#include "utils.hxx"
 
 library::library(const std::filesystem::path &path)
     : m_path{path} {

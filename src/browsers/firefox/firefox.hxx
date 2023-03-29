@@ -1,5 +1,5 @@
-#ifndef FIREFOX_HXX_INCLUDED
-#define FIREFOX_HXX_INCLUDED
+#ifndef BTHIEF_BROWSERS_FIREFOX_FIREFOX_HXX
+#define BTHIEF_BROWSERS_FIREFOX_FIREFOX_HXX
 
 #include "browsers/browser.hxx"
 
@@ -17,4 +17,4 @@ private:
     std::optional<std::vector<std::filesystem::path>> find_profiles(void);
 };
 
-#endif // ifndef FIREFOX_HXX_INCLUDED
+#endif // ifndef BTHIEF_BROWSERS_FIREFOX_FIREFOX_HXX

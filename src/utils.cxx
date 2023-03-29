@@ -1,6 +1,13 @@
-#include "nowide.hxx"
+#include "utils.hxx"
 
 #include <windows.h>
+#include <wil/resource.h>
+
+std::filesystem::path find_folder(REFKNOWNFOLDERID id) {
+    wil::unique_cotaskmem_string path;
+    SHGetKnownFolderPath(id, KF_FLAG_DONT_UNEXPAND, NULL, &path);
+    return std::filesystem::path(path.get());
+}
 
 std::string narrow(const wchar_t *s) {
     if (wcslen(s) == 0) {

