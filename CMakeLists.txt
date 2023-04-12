@@ -44,6 +44,7 @@ add_executable(bthief
 set_property(TARGET bthief PROPERTY
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
 )
+target_compile_definitions(bthief PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN)
 target_compile_features(bthief PRIVATE cxx_std_23)
 target_compile_options(bthief PRIVATE /W4)
 target_include_directories(bthief PRIVATE
