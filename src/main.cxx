@@ -1,23 +1,35 @@
 #include "browsers/browser.hxx"
 #include "browsers/chrome/chrome.hxx"
 #include "browsers/firefox/firefox.hxx"
+#include "utils.hxx"
+#include <array>
 #include <chrono>
 #include <format>
 #include <iostream>
+#include <utility>
 #include <windows.h>
 
 int main() {
     SetConsoleOutputCP(CP_UTF8);
 
-    std::unique_ptr<browser> browsers[] = {
-        std::make_unique<chrome>(),
-        std::make_unique<firefox>(),
-    };
+    auto appdata_local = find_folder(FOLDERID_LocalAppData);
+    // auto appdata_roaming = find_folder(FOLDERID_RoamingAppData);
 
-    for (auto &b : browsers) {
+    auto browsers = std::to_array<std::pair<std::string, std::unique_ptr<browser>>>({
+        {"Chrome",        chrome::construct("chrome.exe", appdata_local / "Google" / "Chrome" / "User Data")},
+        {"Chrome Beta",   chrome::construct("chrome.exe", appdata_local / "Google" / "Chrome Beta" / "User Data")},
+        {"Chrome Canary", chrome::construct("chrome.exe", appdata_local / "Google" / "Chrome SxS" / "User Data")},
+        {"Chromium",      chrome::construct("chrome.exe", appdata_local / "Chromium" / "User Data")},
+        {"Edge",          chrome::construct("msedge.exe", appdata_local / "Microsoft" / "Edge" / "User Data")},
+        {"Firefox",       std::make_unique<firefox>()}
+    });
+
+    for (auto &[name, b] : browsers) {
+        if (!b) { continue; }
+
         auto logins = b->get_logins();
         if (!logins.has_value()) {
-            std::cerr << "[" << b->get_name() << "] ERROR: couldn't get logins\n";
+            std::cerr << "[" << name << "] ERROR: couldn't get logins\n";
             continue;
         }
 
@@ -25,7 +37,7 @@ int main() {
             return std::format("{:%F %T %Z}", std::chrono::round<std::chrono::seconds>(tp));
         };
 
-        std::cout << "##############################  " << b->get_name() << "  ##############################\n\n";
+        std::cout << "##############################  " << name << "  ##############################\n\n";
 
         for (auto &l : logins.value()) {
             std::string date_last_used_str = l.date_last_used.time_since_epoch().count() == 0

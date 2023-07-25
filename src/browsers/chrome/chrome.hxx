@@ -11,15 +11,17 @@
 
 class chrome : public browser {
 public:
-    chrome();
-    std::string get_name(void) const override;
+    static std::unique_ptr<chrome> construct(std::string proc_name, std::filesystem::path path);
+
+    chrome() = delete;
     std::expected<std::vector<login>, browser_error> get_logins(void) override;
 
 private:
+    std::string m_proc_name;
     std::filesystem::path m_key_path, m_logins_path;
     wil::unique_bcrypt_algorithm m_aes_alg;
 
-    std::filesystem::path get_base_path(void);
+    chrome(std::string, std::filesystem::path, std::filesystem::path);
     void kill(void);
 };
 

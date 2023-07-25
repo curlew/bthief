@@ -66,10 +66,6 @@ public:
 };
 } // namespace
 
-std::string firefox::get_name(void) const {
-    return "Firefox";
-}
-
 std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
     std::filesystem::path nss_path;
     if (auto maybe_nss_path = find_nss()) {
@@ -150,7 +146,7 @@ std::optional<std::filesystem::path> firefox::find_nss(void) {
 std::optional<std::vector<std::filesystem::path>> firefox::find_profiles(void) {
     namespace fs = ::std::filesystem;
 
-    std::filesystem::path base_path = find_folder(FOLDERID_RoamingAppData) / "Mozilla" / "Firefox" / "Profiles";
+    fs::path base_path = find_folder(FOLDERID_RoamingAppData) / "Mozilla" / "Firefox" / "Profiles";
 
     std::vector<fs::path> profiles;
     for (const auto &p : fs::directory_iterator(base_path)) {
