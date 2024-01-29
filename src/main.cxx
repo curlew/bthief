@@ -21,6 +21,7 @@ int main() {
         {"Chrome Canary", chrome::construct("chrome.exe", appdata_local / "Google" / "Chrome SxS" / "User Data")},
         {"Chromium",      chrome::construct("chrome.exe", appdata_local / "Chromium" / "User Data")},
         {"Edge",          chrome::construct("msedge.exe", appdata_local / "Microsoft" / "Edge" / "User Data")},
+        {"Brave",         chrome::construct("brave.exe", appdata_local / "BraveSoftware" / "Brave-Browser" / "User Data")},
         {"Opera",         chrome::construct("opera.exe", appdata_roaming / "Opera Software" / "Opera Stable")},
         {"Firefox",       std::make_unique<firefox>()}
     });
