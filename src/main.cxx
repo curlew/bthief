@@ -1,4 +1,3 @@
-#include "browsers/browser.hxx"
 #include "browsers/chrome/chrome.hxx"
 #include "browsers/firefox/firefox.hxx"
 #include "utils.hxx"
@@ -21,28 +20,24 @@ int main() {
         {"Chrome Canary", chrome::construct("chrome.exe", appdata_local / "Google" / "Chrome SxS" / "User Data")},
         {"Chromium",      chrome::construct("chrome.exe", appdata_local / "Chromium" / "User Data")},
         {"Edge",          chrome::construct("msedge.exe", appdata_local / "Microsoft" / "Edge" / "User Data")},
-        {"Brave",         chrome::construct("brave.exe", appdata_local / "BraveSoftware" / "Brave-Browser" / "User Data")},
-        {"Opera",         chrome::construct("opera.exe", appdata_roaming / "Opera Software" / "Opera Stable")},
-        {"Firefox",       std::make_unique<firefox>()}
+        {"Brave",         chrome::construct("brave.exe",  appdata_local / "BraveSoftware" / "Brave-Browser" / "User Data")},
+        {"Opera",         chrome::construct("opera.exe",  appdata_roaming / "Opera Software" / "Opera Stable")},
+        {"Firefox",       std::make_unique<firefox>()}, // TODO: static constructor
     });
 
-    for (auto &[name, b] : browsers) {
-        if (!b) {
-            // browser not found
-            continue;
-        }
+    for (auto &[name, browser] : browsers) {
+        std::cout << "[" << name << "] " << (browser ? "FOUND:\n" : "NOT FOUND\n");
+        if (!browser) { continue; } // browser not found
 
-        auto logins = b->get_logins();
+        auto logins = browser->get_logins();
         if (!logins.has_value()) {
-            std::cerr << "[" << name << "] ERROR: couldn't get logins\n";
+            std::cerr << "Error getting logins\n";
             continue;
         }
 
-        const auto format_time_point = [](std::chrono::system_clock::time_point &tp) {
-            return std::format("{:%F %T %Z}", std::chrono::round<std::chrono::seconds>(tp));
+        const auto format_time_point = [](std::chrono::system_clock::time_point &t) {
+            return std::format("{:%F %T %Z}", std::chrono::round<std::chrono::seconds>(t));
         };
-
-        std::cout << "##############################  " << name << "  ##############################\n\n";
 
         for (auto &l : logins.value()) {
             std::string date_last_used_str = l.date_last_used.time_since_epoch().count() == 0
@@ -54,8 +49,7 @@ int main() {
                       << "    - Password: [" << l.password << "]\n"
                       << "    - Created: " << format_time_point(l.date_created) << "\n"
                       << "    - Last used: " << date_last_used_str << "\n"
-                      << "    - Password last modified: " << format_time_point(l.date_password_modified) << "\n"
-                      << "\n";
+                      << "    - Password last modified: " << format_time_point(l.date_password_modified) << "\n";
         }
     }
 }

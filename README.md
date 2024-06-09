@@ -26,39 +26,44 @@ cmake --build build --config Release
 ## Usage
 ```
 PS C:\Users\User\bthief> .\build\Release\bthief.exe
-##############################  Chrome  ##############################
-
+[Chrome] FOUND:
   - https://login.blockchain.com
     - Username: [someone@example.com]
-    - Password: [Password123]
+    - Password: [Password!]
     - Created: 2022-02-21 17:26:10 UTC
     - Last used: 2022-02-21 17:26:07 UTC
     - Password last modified: 2022-02-21 17:26:10 UTC
-
+[Chrome Beta] NOT FOUND
+[Chrome Canary] NOT FOUND
+[Chromium] NOT FOUND
+[Edge] FOUND:
   - https://www.dropbox.com/login
-    - Username: [someone@example.com]
-    - Password: [Passw0rd!]
-    - Created: 2022-03-28 21:08:12 UTC
-    - Last used: 2022-03-28 21:07:58 UTC
-    - Password last modified: 2022-03-28 21:08:12 UTC
-
-##############################  Opera  ##############################
-
-  - https://www.netflix.com
-    - Username: [someone@example.com]
+    - Username: [username]
+    - Password: [password321]
+    - Created: 2023-07-25 03:51:40 UTC
+    - Last used: 2023-07-25 03:51:36 UTC
+    - Password last modified: 2023-07-25 03:51:40 UTC
+  - http://10.0.0.2
+    - Username: [38476682]
     - Password: [123456]
-    - Created: 2023-04-25 04:26:44 UTC
+    - Created: 2023-04-12 20:16:49 UTC
     - Last used: never
-    - Password last modified: 2023-04-25 04:26:44 UTC
-
-##############################  Firefox  ##############################
-
-  - https://stackoverflow.com
-    - Username: [someone@example.com]
+    - Password last modified: 2023-04-12 20:16:49 UTC
+[Brave] FOUND:
+  - https://site.com/
+    - Username: [username]
     - Password: [qwerty123]
-    - Created: 2023-03-21 19:33:54 UTC
-    - Last used: 2023-03-21 19:33:54 UTC
-    - Password last modified: 2023-03-21 19:33:54 UTC
+    - Created: 2024-01-28 23:38:26 UTC
+    - Last used: never
+    - Password last modified: 2024-01-28 23:38:26 UTC
+  - https://accounts.google.com/v3/signin/challenge/pwd
+    - Username: [person@example.com]
+    - Password: [password123]
+    - Created: 2024-01-28 23:43:18 UTC
+    - Last used: 2024-01-28 23:43:13 UTC
+    - Password last modified: 2024-01-28 23:43:18 UTC
+[Opera] NOT FOUND
+[Firefox] NOT FOUND
 ```
 
 ## Disclaimer

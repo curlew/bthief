@@ -18,6 +18,7 @@ chrome::chrome(std::string proc_name, std::filesystem::path key_path, std::files
 std::unique_ptr<chrome> chrome::construct(std::string proc_name, std::filesystem::path path) {
     namespace fs = std::filesystem;
     fs::path key = path / "Local State";
+    // TODO: read all profiles:
     fs::path logins = path / "Default" / "Login Data";
 
     if (fs::exists(key) && fs::exists(logins)) {
