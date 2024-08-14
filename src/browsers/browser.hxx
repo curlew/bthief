@@ -24,6 +24,7 @@ enum class browser_error {
     bcrypt_error,
     file_not_found,
     json_parse_error,
+    lib_load_error,
     sqlite_error,
 };
 

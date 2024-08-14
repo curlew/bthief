@@ -2,10 +2,7 @@
 #include "browsers/firefox/firefox.hxx"
 #include "utils.hxx"
 #include <array>
-#include <chrono>
-#include <format>
 #include <iostream>
-#include <utility>
 #include <windows.h>
 
 int main() {
@@ -30,7 +27,7 @@ int main() {
         if (!browser) { continue; } // browser not found
 
         auto logins = browser->get_logins();
-        if (!logins.has_value()) {
+        if (!logins) {
             std::cerr << "Error getting logins\n";
             continue;
         }

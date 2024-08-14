@@ -12,19 +12,18 @@
 #include <wil/resource.h>
 #include <nlohmann/json.hpp>
 
+// symbols for runtime dynamic linking
+#define NSS_FUNCTIONS \
+    X(NSS_Initialize) X(NSS_Shutdown) X(SECITEM_AllocItem) X(SECITEM_ZfreeItem) X(PK11SDR_Decrypt)
+
 namespace {
 class nss_library : private library {
 public:
     using library::library;
 
-    // symbols for runtime dynamic linking
-    // clang-format off
-    std::function<::NSS_Initialize>    NSS_Initialize    = function<::NSS_Initialize>("NSS_Initialize");
-    std::function<::NSS_Shutdown>      NSS_Shutdown      = function<::NSS_Shutdown>("NSS_Shutdown");
-    std::function<::SECITEM_AllocItem> SECITEM_AllocItem = function<::SECITEM_AllocItem>("SECITEM_AllocItem");
-    std::function<::SECITEM_ZfreeItem> SECITEM_ZfreeItem = function<::SECITEM_ZfreeItem>("SECITEM_ZfreeItem");
-    std::function<::PK11SDR_Decrypt>   PK11SDR_Decrypt   = function<::PK11SDR_Decrypt>("PK11SDR_Decrypt");
-    // clang-format on
+    #define X(func) std::function<::func> func = get_function<::func>(#func);
+    NSS_FUNCTIONS
+    #undef X
 };
 
 class nss {
@@ -74,21 +73,21 @@ std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
         return std::unexpected(browser_error::file_not_found);
     }
 
-    std::optional<nss_library> maybe_nss_lib;
-    try {
-        maybe_nss_lib = std::optional<nss_library>(nss_path);
-    } catch (std::runtime_error &e) {
-        std::cerr << "NSS exception: " << e.what() << "\n";
-        return std::unexpected(browser_error::file_not_found); // TODO:
-    }
-    nss_library &nss_lib = *maybe_nss_lib;
-
     std::vector<std::filesystem::path> profiles;
     if (auto maybe_profiles = find_profiles()) {
         profiles = *maybe_profiles;
     } else {
         return std::unexpected(browser_error::file_not_found);
     }
+
+    std::optional<nss_library> maybe_nss_lib;
+    try {
+        maybe_nss_lib = std::optional<nss_library>(nss_path);
+    } catch (std::runtime_error &e) {
+        std::cerr << "NSS exception: " << e.what() << "\n";
+        return std::unexpected(browser_error::lib_load_error);
+    }
+    nss_library &nss_lib = *maybe_nss_lib;
 
     std::vector<login> logins;
     for (const auto &profile : profiles) {
@@ -99,23 +98,24 @@ std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
 
         nss db(nss_lib, profile);
 
+        using ms = std::chrono::milliseconds;
+        using time_point = std::chrono::system_clock::time_point;
         using json = nlohmann::json;
-        json j = json::parse(logins_file);
-        for (const auto &login_entry : j.at("logins")) {
-            // if (login_entry.at("hostname") == "chrome://FirefoxAccounts") {} // TODO:
 
-            using ms = std::chrono::milliseconds;
-            using time_point = std::chrono::system_clock::time_point;
-
-            login l {
-                .url = login_entry.at("hostname"),
-                .username = db.decrypt(login_entry.at("encryptedUsername")),
-                .password = db.decrypt(login_entry.at("encryptedPassword")),
-                .date_created = time_point(ms(login_entry.at("timeCreated").get<uint64_t>())),
-                .date_last_used = time_point(ms(login_entry.at("timeLastUsed").get<uint64_t>())),
-                .date_password_modified = time_point(ms(login_entry.at("timePasswordChanged").get<uint64_t>())),
-            };
-            logins.emplace_back(l);
+        try {
+            json logins_json = json::parse(logins_file);
+            for (const auto &login_entry : logins_json.at("logins")) {
+                logins.emplace_back(login{
+                    .url = login_entry.at("hostname"),
+                    .username = db.decrypt(login_entry.at("encryptedUsername")),
+                    .password = db.decrypt(login_entry.at("encryptedPassword")),
+                    .date_created = time_point(ms(login_entry.at("timeCreated").get<uint64_t>())),
+                    .date_last_used = time_point(ms(login_entry.at("timeLastUsed").get<uint64_t>())),
+                    .date_password_modified = time_point(ms(login_entry.at("timePasswordChanged").get<uint64_t>())),
+                });
+            }
+        } catch (json::exception &e) {
+            std::cerr << "JSON exception: " << e.what() << "\n";
         }
     }
 
