@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <expected>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,7 @@ struct login {
     std::chrono::system_clock::time_point date_last_used;
     std::chrono::system_clock::time_point date_password_modified;
 };
+std::ostream &operator<<(std::ostream &, const login &);
 
 /**
  * Error conditions of browser::get_logins().
