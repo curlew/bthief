@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <expected>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,7 @@ struct login {
     std::chrono::system_clock::time_point date_last_used;
     std::chrono::system_clock::time_point date_password_modified;
 };
+std::ostream &operator<<(std::ostream &, const login &);
 
 /**
  * Error conditions of browser::get_logins().
@@ -22,6 +24,7 @@ enum class browser_error {
     bcrypt_error,
     file_not_found,
     json_parse_error,
+    lib_load_error,
     sqlite_error,
 };
 

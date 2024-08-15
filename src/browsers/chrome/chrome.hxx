@@ -22,6 +22,7 @@ private:
     wil::unique_bcrypt_algorithm m_aes_alg;
 
     chrome(std::string, std::filesystem::path, std::filesystem::path);
+    std::string decrypt_password(std::vector<uint8_t> db_password, const BCRYPT_KEY_HANDLE key);
     void kill(void);
 };
 

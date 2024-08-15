@@ -36,6 +36,7 @@ add_executable(bthief
     src/main.cxx
     src/utils.cxx
     src/crypt.cxx
+    src/browsers/browser.cxx
     src/browsers/chrome/chrome.cxx
     src/browsers/firefox/firefox.cxx
     src/browsers/firefox/library.cxx

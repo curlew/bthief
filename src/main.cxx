@@ -2,10 +2,7 @@
 #include "browsers/firefox/firefox.hxx"
 #include "utils.hxx"
 #include <array>
-#include <chrono>
-#include <format>
 #include <iostream>
-#include <utility>
 #include <windows.h>
 
 int main() {
@@ -30,26 +27,13 @@ int main() {
         if (!browser) { continue; } // browser not found
 
         auto logins = browser->get_logins();
-        if (!logins.has_value()) {
+        if (!logins) {
             std::cerr << "Error getting logins\n";
             continue;
         }
 
-        const auto format_time_point = [](std::chrono::system_clock::time_point &t) {
-            return std::format("{:%F %T %Z}", std::chrono::round<std::chrono::seconds>(t));
-        };
-
         for (auto &l : logins.value()) {
-            std::string date_last_used_str = l.date_last_used.time_since_epoch().count() == 0
-                                                 ? "never"
-                                                 : format_time_point(l.date_last_used);
-
-            std::cout << "  - " << l.url << "\n"
-                      << "    - Username: [" << l.username << "]\n"
-                      << "    - Password: [" << l.password << "]\n"
-                      << "    - Created: " << format_time_point(l.date_created) << "\n"
-                      << "    - Last used: " << date_last_used_str << "\n"
-                      << "    - Password last modified: " << format_time_point(l.date_password_modified) << "\n";
+            std::cout << l << "\n";
         }
     }
 }
