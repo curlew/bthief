@@ -109,6 +109,7 @@ std::expected<std::vector<login>, browser_error> firefox::get_logins(void) {
                     .url = login_entry.at("hostname"),
                     .username = db.decrypt(login_entry.at("encryptedUsername")),
                     .password = db.decrypt(login_entry.at("encryptedPassword")),
+                    .times_used = login_entry.at("timesUsed"),
                     .date_created = time_point(ms(login_entry.at("timeCreated").get<uint64_t>())),
                     .date_last_used = time_point(ms(login_entry.at("timeLastUsed").get<uint64_t>())),
                     .date_password_modified = time_point(ms(login_entry.at("timePasswordChanged").get<uint64_t>())),

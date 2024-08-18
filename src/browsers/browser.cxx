@@ -12,6 +12,7 @@ std::ostream &operator<<(std::ostream &os, const login &l) {
     return os << "  - " << l.url << "\n"
               << "    - Username: [" << l.username << "]\n"
               << "    - Password: [" << l.password << "]\n"
+              << "    - Times used: " << l.times_used << "\n"
               << "    - Created: " << format_time_point(l.date_created) << "\n"
               << "    - Last used: " << date_last_used_str << "\n"
               << "    - Password last modified: " << format_time_point(l.date_password_modified);

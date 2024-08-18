@@ -11,6 +11,7 @@ struct login {
     std::string url;
     std::string username;
     std::string password;
+    int times_used;
     std::chrono::system_clock::time_point date_created;
     std::chrono::system_clock::time_point date_last_used;
     std::chrono::system_clock::time_point date_password_modified;

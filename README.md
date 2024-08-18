@@ -13,7 +13,10 @@
 
 ## Overview
 
-bthief is a web browser credential harvester for Windows, written in C++. It supports Chrome, Chromium, Opera, Brave, Edge, and Firefox.
+bthief is a web browser credential harvester that supports Chrome, Chromium, Opera, Brave, Edge, and Firefox.
+The Chrome Beta and Canary versions are also supported.
+
+It retrieves usernames and passwords, how many times a login has been used, and when it was created, last used, and last modified.
 
 ## Building
 **Requirements**: Visual C++ Build Tools and CMake must be installed.
@@ -30,6 +33,7 @@ PS C:\Users\User\bthief> .\build\Release\bthief.exe
   - https://login.blockchain.com
     - Username: [someone@example.com]
     - Password: [Password!]
+    - Times used: 2
     - Created: 2022-02-21 17:26:10 UTC
     - Last used: 2022-02-21 17:26:07 UTC
     - Password last modified: 2022-02-21 17:26:10 UTC
@@ -40,25 +44,22 @@ PS C:\Users\User\bthief> .\build\Release\bthief.exe
   - https://www.dropbox.com/login
     - Username: [username]
     - Password: [password321]
+    - Times used: 4
     - Created: 2023-07-25 03:51:40 UTC
     - Last used: 2023-07-25 03:51:36 UTC
     - Password last modified: 2023-07-25 03:51:40 UTC
   - http://10.0.0.2
     - Username: [38476682]
     - Password: [123456]
+    - Times used: 1
     - Created: 2023-04-12 20:16:49 UTC
     - Last used: never
     - Password last modified: 2023-04-12 20:16:49 UTC
 [Brave] FOUND:
-  - https://site.com/
-    - Username: [username]
-    - Password: [qwerty123]
-    - Created: 2024-01-28 23:38:26 UTC
-    - Last used: never
-    - Password last modified: 2024-01-28 23:38:26 UTC
   - https://accounts.google.com/v3/signin/challenge/pwd
     - Username: [person@example.com]
     - Password: [password123]
+    - Times used: 6
     - Created: 2024-01-28 23:43:18 UTC
     - Last used: 2024-01-28 23:43:13 UTC
     - Password last modified: 2024-01-28 23:43:18 UTC

