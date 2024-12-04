@@ -6,21 +6,21 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 struct login {
-    std::string url;
-    std::string username;
-    std::string password;
+    std::string url, username, password;
     int times_used;
-    std::chrono::system_clock::time_point date_created;
-    std::chrono::system_clock::time_point date_last_used;
-    std::chrono::system_clock::time_point date_password_modified;
+    std::chrono::system_clock::time_point date_created, date_last_used, date_password_modified;
 };
+
 std::ostream &operator<<(std::ostream &, const login &);
 
-/**
- * Error conditions of browser::get_logins().
- */
+/// Converts a login to an ordered JSON object.
+void to_json(nlohmann::ordered_json &j, const login &l);
+
+
+/// Error conditions of browser::get_logins().
 enum class browser_error {
     bcrypt_error,
     file_not_found,

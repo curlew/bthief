@@ -4,8 +4,15 @@
 #include <array>
 #include <iostream>
 #include <windows.h>
+#include <nlohmann/json.hpp>
 
-int main() {
+namespace {
+bool option_exists(int argc, char *argv[], const std::string &option) {
+    return std::find(argv, argv + argc, option) != argv + argc;
+}
+} // namespace
+
+int main(int argc, char *argv[]) {
     SetConsoleOutputCP(CP_UTF8);
 
     const auto appdata_local = find_folder(FOLDERID_LocalAppData);
@@ -22,18 +29,32 @@ int main() {
         {"Firefox",       std::make_unique<firefox>()}, // TODO: static constructor
     });
 
-    for (auto &[name, browser] : browsers) {
-        std::cout << "[" << name << "] " << (browser ? "FOUND:\n" : "NOT FOUND\n");
+    const bool json_mode = option_exists(argc, argv, "-j");
+    nlohmann::ordered_json logins_json; // only used in JSON mode
+
+    for (const auto &[name, browser] : browsers) {
         if (!browser) { continue; } // browser not found
 
         auto logins = browser->get_logins();
         if (!logins) {
-            std::cerr << "Error getting logins\n";
-            continue;
+            // error getting logins
+            continue; // TODO:
         }
 
-        for (auto &l : logins.value()) {
-            std::cout << l << "\n";
+        if (json_mode) {
+            logins_json[name] = logins.value();
+        } else {
+            std::cout << name << ":\n";
+
+            for (auto &login : logins.value()) {
+                std::cout << login << "\n";
+            }
+
+            std::cout << "\n";
         }
+    }
+
+    if (json_mode) {
+        std::cout << logins_json.dump(4) << std::endl;
     }
 }

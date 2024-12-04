@@ -16,9 +16,10 @@
 bthief is a web browser credential harvester that supports Chrome, Chromium, Opera, Brave, Edge, and Firefox.
 The Chrome Beta and Canary versions are also supported.
 
-It retrieves usernames and passwords, how many times a login has been used, and when it was created, last used, and last modified.
+It retrieves usernames and passwords, how many times each login has been used, and when it was created, last used, and last modified.
 
 ## Building
+
 **Requirements**: Visual C++ Build Tools and CMake must be installed.
 
 ```
@@ -27,9 +28,13 @@ cmake --build build --config Release
 ```
 
 ## Usage
+
+Only installed browsers are shown.
+JSON output can be enabled with the `-j` flag.
+
 ```
 PS C:\Users\User\bthief> .\build\Release\bthief.exe
-[Chrome] FOUND:
+Chrome:
   - https://login.blockchain.com
     - Username: [someone@example.com]
     - Password: [Password!]
@@ -37,10 +42,8 @@ PS C:\Users\User\bthief> .\build\Release\bthief.exe
     - Created: 2022-02-21 17:26:10 UTC
     - Last used: 2022-02-21 17:26:07 UTC
     - Password last modified: 2022-02-21 17:26:10 UTC
-[Chrome Beta] NOT FOUND
-[Chrome Canary] NOT FOUND
-[Chromium] NOT FOUND
-[Edge] FOUND:
+
+Edge:
   - https://www.dropbox.com/login
     - Username: [username]
     - Password: [password321]
@@ -55,7 +58,8 @@ PS C:\Users\User\bthief> .\build\Release\bthief.exe
     - Created: 2023-04-12 20:16:49 UTC
     - Last used: never
     - Password last modified: 2023-04-12 20:16:49 UTC
-[Brave] FOUND:
+
+Brave:
   - https://accounts.google.com/v3/signin/challenge/pwd
     - Username: [person@example.com]
     - Password: [password123]
@@ -63,19 +67,20 @@ PS C:\Users\User\bthief> .\build\Release\bthief.exe
     - Created: 2024-01-28 23:43:18 UTC
     - Last used: 2024-01-28 23:43:13 UTC
     - Password last modified: 2024-01-28 23:43:18 UTC
-[Opera] NOT FOUND
-[Firefox] NOT FOUND
 ```
 
 ## Disclaimer
+
 bthief is intended for educational purposes only. Do not use it illegally.
 
 ## Acknowledgements
 
 ### Contributors
+
 - [@zedek1](https://github.com/zedek1)
 
 ### Dependencies
+
 (These are handled automatically by CMake)
 - [Windows Implementation Libraries](https://github.com/microsoft/wil)
 - [nlohmann/json](https://github.com/nlohmann/json)
