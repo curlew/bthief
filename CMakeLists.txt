@@ -7,6 +7,7 @@ set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
 
 project(bthief LANGUAGES CXX C)
 
+include(cmake/clang_format.cmake)
 include(FetchContent)
 
 FetchContent_Declare(
