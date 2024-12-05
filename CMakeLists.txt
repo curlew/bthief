@@ -12,34 +12,39 @@ include(FetchContent)
 FetchContent_Declare(
     wil
     GIT_REPOSITORY https://github.com/microsoft/wil.git
-    GIT_TAG 5f4caba4e7a9017816e47becdd918fcc872039ba # v1.0.220914.1
+    GIT_TAG f0c6a81c0c9a4b23b6801f40554b8bec425a83b4 # v1.0.240803.1
 )
 set(WIL_BUILD_TESTS OFF)
 
 FetchContent_Declare(
     json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG bc889afb4c5bf1c0d8ee29ef35eaaf4c8bef8a5d # v3.11.2
+    GIT_TAG 9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03 # v3.11.3
 )
 
 FetchContent_Declare(
     sqlite
-    URL https://sqlite.org/2022/sqlite-amalgamation-3400100.zip # v3.40.1
-    URL_HASH SHA3_256=2618a7f311ce3f8307c45035bce31805185d632241b2af6c250b4531f09edccb
+    URL https://sqlite.org/2024/sqlite-amalgamation-3470100.zip # 3.47.1
+    URL_HASH SHA3_256=71c08f4c890000094a6781169927de8f87ad8569410d9a4310c07dbca1f14b37
+    DOWNLOAD_EXTRACT_TIMESTAMP 1
 )
 
 message(STATUS "Getting dependencies...")
 FetchContent_MakeAvailable(wil json sqlite)
 
+set(BTHIEF_SOURCES
+    main.cxx
+    utils.cxx
+    crypt.cxx
+    browsers/browser.cxx
+    browsers/chrome/chrome.cxx
+    browsers/firefox/firefox.cxx
+    browsers/firefox/library.cxx
+)
+list(TRANSFORM BTHIEF_SOURCES PREPEND "src/")
 
 add_executable(bthief
-    src/main.cxx
-    src/utils.cxx
-    src/crypt.cxx
-    src/browsers/browser.cxx
-    src/browsers/chrome/chrome.cxx
-    src/browsers/firefox/firefox.cxx
-    src/browsers/firefox/library.cxx
+    ${BTHIEF_SOURCES}
     ${sqlite_SOURCE_DIR}/sqlite3.c
 )
 set_property(TARGET bthief PROPERTY
